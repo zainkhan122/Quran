@@ -267,7 +267,95 @@ the API spend. Hypit is the better-engineered version of the same ambition.
 
 ---
 
-## 7. What changed in the code
+## 7. "They're reading, not reciting" — the correction that reshaped the project
+
+This was the sharpest feedback in the whole project, and it's correct. **Every one of those
+engines reads.** MMS-VITS, SpeechT5, Tacotron2, XTTS — all trained on read speech: news
+bulletins and audiobooks. They produce correct Urdu with news-reader prosody. Naat is not read:
+
+| Naat recitation | Read speech |
+|---|---|
+| **Madd** — vowels sustained, sometimes for seconds | vowels clipped to their spoken length |
+| **Tarannum** — a melodic line in a raga | flat, narrow pitch range |
+| **Meend** — portamento sliding between notes | discrete, abrupt pitch steps |
+| **Nyas** — a held note at the end of a phrase | trailing off, or a downward terminal fall |
+| Breath shape — an arch across the whole line | word-by-word, no phrase architecture |
+
+No seed, no prompt, no punctuation trick gets that out of a read-speech model. It isn't a
+tuning problem; the models have never been trained on anything that sounds like recitation.
+I said this was the "more important finding" in the blueprint and then built three voices that
+all had the same flaw — so this correction is worth stating plainly.
+
+### What I built instead: `naat/tarannum.py`
+
+A **source-filter transform using the WORLD vocoder**, not a model:
+
+```
+analyze   →  F0 + spectral envelope + aperiodicity (pyworld)
+reshape   →  replace F0 with a melodic contour: raga scale, portamento into each
+             note, vibrato on sustained notes, meend-down and a held note at the
+             line's end.  The spectral envelope is NOT touched.
+resynth   →  WORLD synthesis
+```
+
+Keeping the spectral envelope is the entire trick. It carries the **formants** — the voice's
+identity and its vowel quality. Reshaping only F0 means the same speaker now sings a contour
+instead of reading a line. Pitch-shifting the finished audio would smear the formants and
+produce a chipmunk; separating source from filter avoids that completely.
+
+Only **voiced** frames are touched. Consonants pass through unmodified, so intelligibility is
+preserved — which matters more here than in any other project, because these are sacred words.
+
+**Ragas** (semitone offsets from the tonic): `bhairavi` (grave, devotional — the default),
+`kafi` (ghazal/folk colour), `yaman` (serene, evening), `khammaj` (bright).
+**Phrase shapes**: `arch`, `gentle`, `call`, `soz` (descending, elegiac), `chalan` (elaborated).
+
+Cost: **+1.1 s for 17 s of audio, 741 MB peak, no extra model downloaded.**
+
+### Three bugs worth recording
+
+1. **The contour was traversed per breath-group, not per line.** Naat lines split into short
+   breath groups of 2–3 syllables, so every group landed on contour degrees 0→0 and the pitch
+   never moved. Fixed by flattening all syllables across the line and walking the contour once.
+2. **The reshaped pitch never reached synthesis.** `f0` was only swapped inside the madd-hold
+   branch, so any line without a hold was resynthesised at its original pitch — tarannum silently
+   did nothing, and all three ragas produced byte-identical output. Now the contour *is* the
+   pitch track.
+3. **Madd vanished on short final syllables.** A line ending on a 1–2 frame syllable made the
+   hold round to zero frames. Added a 300 ms floor.
+
+Bug 2 is the instructive one: the objective stats looked plausible (a median near the source
+pitch is exactly what a centred melody should give), and only the *range* gave it away — 73–198 Hz
+is the original range, when a ±7-semitone clip can never exceed 186 Hz. Cheap sanity checks on
+the numbers caught what a quick listen might not have.
+
+### Where this stops, honestly
+
+It imposes a chosen raga onto speech. It is **not** a trained singer: it will not phrase like a
+naat khawan, it cannot fit a melody to the poem's *bahr* (metre), and the consonants stay spoken.
+It should read clearly as *chanting* rather than a news bulletin — but judge it yourself; all
+four tarannum renders are in the player.
+
+For true singing you need **singing-voice synthesis**, and that's a GPU job:
+
+- **DiffSinger** (MoonInTheRiver/DiffSinger, 4.9k★, MIT, maintained by OpenVPI) takes
+  *lyrics + pitch/MIDI* → sung audio. That is exactly our case: we have the lyrics, and a naat
+  melody can be written as MIDI. It runs inside **OpenUTAU**, which has phonemizers for many
+  languages — **but no Urdu/Hindi voicebank ships today.**
+- **LAPS-Diff** (2025) is the proof it's tractable: a DiffSinger variant for **Hindi Bollywood
+  singing**, trained on **~1 hour** of single-singer data, reaching MOS 3.36 against DiffSinger's
+  2.85. Urdu and Hindi are the same spoken language, so a Hindi voicebank would sing Urdu lyrics
+  with a script→phoneme mapping.
+- **The realistic route:** fine-tune DiffSinger on ~1 hour of a *consenting* reciter — yourself,
+  or a naat khawan who agrees — then drive it with our lyrics plus a MIDI melody. Train on a free
+  GPU tier (Colab T4, or Kaggle 2×T4 at 30 h/week), infer on the 16 GB Actions runner.
+
+That is the honest path to real tarannum, and it needs a human voice and consent, not more
+prompting.
+
+---
+
+## 8. What changed in the code
 
 | Change | File |
 |---|---|
@@ -288,9 +376,10 @@ sounds right for recitation, and that's your ear, not mine.
 
 ---
 
-## 8. What I'd do next, in order
+## 9. What I'd do next, in order
 
-1. **Pick a voice** from the three A/B renders — one sentence from you and I'll set the default.
+1. **Pick a delivery** from the four tarannum renders vs the read baseline — bhairavi or yaman,
+   baseline voice or fine-tuned. Your ear decides this, not the numbers.
 2. **Open an issue on `RamizSaud/TTS`** asking for the Tacotron2 + HiFi-GAN checkpoints. MOS 4.2
    would be a real quality jump, and it needs no code from us to find out.
 3. **Build the Hypit lyric-video leg** on the 16 GB runner: our MP3 + WhisperX alignment →

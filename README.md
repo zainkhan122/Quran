@@ -51,6 +51,26 @@ Sacred vocabulary is controlled by `lexicon/urdu_overrides.json` — a hand-revi
 surface-form → spoken-form table applied before synthesis. Edit it when an engine
 mispronounces a word; it's the human checkpoint for devotional terms.
 
+### Delivery — read vs tarannum
+
+Stock TTS *reads* Urdu. Recitation is melodic. `naat/tarannum.py` reshapes the pitch contour
+with the WORLD vocoder — raga scale, portamento, vibrato, sustained line-final note — while
+leaving the spectral envelope untouched, so the voice keeps its identity and consonants stay
+intelligible.
+
+```bash
+python -m naat.pipeline --lyrics lyrics/my_naat.txt --recitation tarannum --raga bhairavi --contour arch
+```
+
+| | |
+|---|---|
+| Ragas | `bhairavi` (grave, default) · `kafi` · `yaman` · `khammaj` |
+| Phrase shapes | `arch` (default) · `gentle` · `call` · `soz` · `chalan` |
+| Cost | **+1.1 s per 17 s of audio, 741 MB, no extra model** |
+
+It is not a trained singer — see §7 of [`ASSESSMENT.md`](ASSESSMENT.md) for what it does and
+does not do, and the DiffSinger route to true singing.
+
 ### Backing styles
 
 | Style | Engine | Needs | Character |
