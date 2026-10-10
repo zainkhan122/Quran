@@ -1,0 +1,7 @@
+# Sample naat text (original composition, public-domain-style traditional refrain)
+# Lines end with ۔ for a longer pause. ﷺ is expanded automatically before TTS.
+
+یا نبی سلام علیک، یا رسول سلام علیک۔
+آپ کا در ہے میری جا، آپ کا دیوانہ ہوں۔
+مدینے کی گلیوں کا میں طالب ہوں۔
+رحمتِ دو جہاں، یا محمد مصطفیٰ۔

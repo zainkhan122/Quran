@@ -1,0 +1,19 @@
+{
+  "vocal": "output/stems/ab-gtts_vocal.wav",
+  "backing": null,
+  "engine": "ffmpeg",
+  "wav": "output/ab-gtts.wav",
+  "mp3": "output/ab-gtts.mp3",
+  "seconds": 14.33,
+  "sample_rate": 44100,
+  "lyrics": "lyrics/sample_naat.txt",
+  "style": "a-cappella",
+  "bpm": 66,
+  "breath_groups": 1,
+  "vocal_seconds": 14.33,
+  "tts_wall_seconds": 0.9,
+  "tts_rtf": 0.063,
+  "tts_engine": "gtts",
+  "tts_model": "gtts",
+  "peak_rss_mb": 52
+}

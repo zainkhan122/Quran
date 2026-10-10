@@ -1,0 +1,143 @@
+name: Naat Studio - generate
+
+# FREE on a public repository.
+# GitHub-hosted ubuntu-latest on a PUBLIC repo = 4 vCPU / 16 GB RAM / 14 GB SSD,
+# with unlimited free minutes. That is 8x the RAM of the workspace sandbox and
+# is what lets MusicGen run at full fp32 quality instead of 2-second clips.
+
+on:
+  workflow_dispatch:
+    inputs:
+      lyrics:
+        description: "Path to a file in lyrics/ (or paste one Urdu line per line)"
+        required: true
+        default: "lyrics/sample_naat.txt"
+      style:
+        description: "Backing style"
+        required: true
+        default: "ney-daf"
+        type: choice
+        options: [a-cappella, ney, ney-daf, strings, drone, daf-drone]
+      engine:
+        description: "Urdu voice"
+        required: true
+        default: "mms"
+        type: choice
+        options: [mms, mms-ft, gtts]
+      recitation:
+        description: "Delivery"
+        required: true
+        default: "tarannum"
+        type: choice
+        options: [tarannum, read]
+      raga:
+        description: "Raga (tarannum only)"
+        required: false
+        default: "bhairavi"
+      contour:
+        description: "Phrase shape"
+        required: false
+        default: "arch"
+      bpm:
+        description: "Tempo"
+        required: false
+        default: "66"
+  push:
+    paths:
+      - "lyrics/**"
+      - "!lyrics/README.md"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: naat-studio
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # Models are ~2.5 GB per engine; caching keeps runs to a few minutes.
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ github.event.inputs.style || 'default' }}-v1
+
+      - name: Install CPU toolchain
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install transformers numpy scipy soundfile psutil gTTS pyworld "setuptools<81"
+
+      - name: Write lyrics file
+        run: |
+          mkdir -p lyrics
+          INPUT='${{ github.event.inputs.lyrics }}'
+          if [ -f "$INPUT" ]; then
+            echo "using existing $INPUT"
+          else
+            printf '%s\n' "$INPUT" > lyrics/submitted_naat.txt
+          fi
+
+      - name: Generate naat
+        env:
+          STYLE: ${{ github.event.inputs.style || 'ney-daf' }}
+          BPM: ${{ github.event.inputs.bpm || '66' }}
+          ENGINE: ${{ github.event.inputs.engine || 'mms' }}
+          REC: ${{ github.event.inputs.recitation || 'tarannum' }}
+          RAGA: ${{ github.event.inputs.raga || 'bhairavi' }}
+          CONTOUR: ${{ github.event.inputs.contour || 'arch' }}
+        run: |
+          LY=$( [ -f "${{ github.event.inputs.lyrics }}" ] \
+                && echo "${{ github.event.inputs.lyrics }}" \
+                || echo "lyrics/submitted_naat.txt" )
+          python -m naat.pipeline --lyrics "$LY" --style "$STYLE" --bpm "$BPM" \
+            --engine "$ENGINE" --recitation "$REC" --raga "$RAGA" --contour "$CONTOUR" \
+            --out output --stem naat-${{ github.run_number }}
+
+      - name: Upload audio artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: naat-${{ github.run_number }}
+          path: |
+            output/*.mp3
+            output/*.wav
+            output/*.json
+          retention-days: 30
+
+      - name: Publish to GitHub Pages
+        run: |
+          mkdir -p site/audio
+          cp output/*.mp3 site/audio/ 2>/dev/null || true
+          cp output/*.json site/audio/ 2>/dev/null || true
+          cp -r web/* site/ 2>/dev/null || true
+          python tools/build_manifest.py site/audio site/audio/manifest.json
+          touch site/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: generate
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
