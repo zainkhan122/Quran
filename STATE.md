@@ -77,7 +77,11 @@ bash setup.sh --check                          # ~9 s
 python3 -m unittest discover -s tests          # 91 tests, ~15 s, stdlib, offline
 python3 tools/check_relevance.py --audit       # topic vs its own refs (needs network)
 python3 tools/voice_metrics.py FILE.wav        # delivery: pauses, pitch range, wpm
-du -sh /home/user                               # budget: must stay under 128 MB
+du -sh --exclude=.cache --exclude=__pycache__ --exclude=node_modules \
+  /home/user                                    # budget: must stay under 128 MB
+# NOTE: plain `du -sh /home/user` over-reports by ~60 MB of voice weights in
+# ~/.cache, which the snapshot excludes. Use the excludes above or you will
+# panic about a budget that is fine, or worse, miss a real overrun.
 python3 tools/plan_render.py --plan --offline  # the plan the workflow would build
 python3 tools/publish.py                       # gates every clip, then writes the site
 ```
