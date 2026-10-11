@@ -27,32 +27,57 @@ sessions (installed packages, `/tmp` and every process are lost; only files unde
 | # | Session goal | Deliverable | Status |
 |---|---|---|---|
 | 0 | **Foundations.** One renderer (two existed), clean tree, phased plan, state capsule, repo pushed | this file, `STATE.md`, single-source renderer, clean tree | ✅ 2026-10-11 |
-| 1 | **Make the studio render at all.** Fix the ffmpeg tail-hang; move Urdu TTS into a short-lived process; render the three clips | 3 MP4s + posters + `manifest.json` | ⏳ next |
-| 2 | **Cloud render.** Free GitHub runners (4 vCPU / 16 GB) instead of the 2 GB sandbox; outputs to a Release; secrets in Actions | `.github/workflows/render.yml` | |
+| 1 | **Make the studio render at all.** Fix the ffmpeg tail-hang; move Urdu TTS into a short-lived process; render the three clips | 3 MP4s + posters + `manifest.json` | ✅ 2026-10-11 |
+| 2 | **Cloud render.** Free GitHub runners (4 vCPU / 16 GB) instead of the 2 GB sandbox; outputs to a Release; secrets in Actions | `.github/workflows/render.yml` | ⏳ next |
 | 3 | **QA gates.** Machine checks that must pass before a video reaches `web/video/` | `tools/qa.py` + gate wired into publish | |
 | 4 | **Coverage.** `parents` motif (8th of 8), verify the seeded topic references against a human-checked list, render the 8-topic library | clips for every topic | |
 | 4b | optional: regenerate `assets/motifs/` procedurally from the prompts in `tools/motifs.py`. The earlier geometric generator was retired in Phase 0 as unused duplication — the committed PNG set is the source of truth, so regeneration needs a spec first | | |
 | 5 | **Publishing.** Site polish; optional scheduled render + release; a receipt journal so nothing is ever re-uploaded | | |
 | 6 | optional: long-form cuts, landscape variants, an analytics loop (views → topic picks) | | |
 
-### Known work for Phase 1 (carry-over detail, so the next session does not re-derive it)
+### Phase 1 outcome — both defects closed, with the measurement
 
-* **ffmpeg tail-hang.** `islamic/studio.py:render()` feeds frames over stdin and
-  the encode never finishes. Reproduced twice: the writer gets all frames through
-  (375 frames fed in 4.9 s) and then waits forever at the close. Standalone encodes
-  of the same size/preset take seconds, so it is the command shape, not x264 —
-  prime suspects are `apad` on the audio plus `-shortest` in a filter-complex feed,
-  and AAC's encoder delay. Fix: give the audio an exact `-t` and drop `apad`/
-  `-shortest`, or write the timeline to WAV first. **Always bound any render with a
-  timeout** so a hang costs a minute, not the session.
-* **Urdu TTS OOM.** `islamic/produce.py:narrate()` runs the model in the render
-  process; `del` + `gc.collect()` leaves ~484 MB of torch arenas resident, and
-  ffmpeg then dies by signal (empty stderr). `islamic/narrate.py` already does the
-  job in a child process that exits before encoding starts — wire `produce.py` to
-  call it. Measured: 484 MB is the floor after freeing; the child approach returns
-  the whole box.
-* **Pending-word colour.** In `studio.py` the not-yet-recited words draw in a cold
-  steel tone. Warm it toward the palette (dim gold/ivory) before the first render.
+**1. The ffmpeg tail-hang — root cause found and proven.** The audio chain ended
+in a bare `apad`, which pads with silence indefinitely, and the output relied on
+`-shortest`, which cannot propagate EOF from a stdin video feed. ffmpeg therefore
+never finished the encode after the last frame had been written. Isolated A/B on a
+5 s clip: the shipped form was still running at 32 s and had to be killed; bounding
+the pad with `apad=whole_dur=<total>` plus an explicit `-t` finished in **2.6 s**.
+`-shortest` is gone.
+
+Two hardening changes went in with it, because a hang must never again cost a whole
+session: a deadline that aborts the loop with a real error, and a bounded wait at
+the close. ffmpeg's stderr now goes to `output/video/render.log` rather than a pipe
+nobody drains — at `-v error` there is nothing to stream, and reading it afterwards
+is what turns "it hung" into a message.
+
+**2. The Urdu TTS OOM — fixed by isolation.** `produce.narrate()` now calls
+`islamic/narrate.py` as a child process. Measured earlier: dropping the model
+returns ~484 MB to the process but not to the OS, and ffmpeg — which needs the bulk
+of a 2 GB box — was then killed by a signal that leaves no stderr at all.
+The child exits before encoding starts, handing the whole box back.
+
+**3. Legibility defect found by inspecting the output.** The static-Arabic fitter
+capped lines at 22, which also capped the type at 64 px: a several-hundred-character
+isnad sat in the middle of a 1070 px stage with the reader squinting at it on a
+phone. The stage height is now the constraint instead of the line count — 87 px,
+a 70 % area increase, and the block fills the stage.
+
+**Also:** the not-yet-recited word colour was a cold steel tone
+(`120,146,138`); it now sits in the palette as brass in shadow (`146,124,84`), so
+the live word is the brightest thing on the frame.
+
+**Measured results** (all three rendered in this session, one at a time):
+
+| Reference | Duration | Size | Render time | Notes |
+|---|---|---|---|---|
+| `quran:81:8` | 11.60 s | 1.26 MB | ~15 s | 3 words, word-by-word |
+| `quran:30:21` | 52.57 s | 5.98 MB | 71 s | 20 words, word-by-word |
+| `ibnmajah:224` | 47.60 s | 4.27 MB | 53 s | isnad shown, no auto-narration |
+
+Word-by-word sync was verified against the publisher's own timings, not by eye:
+settled-word ink accumulates monotonically at t≈1.0 s / 1.5 s / 2.9 s, matching the
+three word boundaries in `audio.segments`. Averaged programme loudness −14.3 LUFS.
 
 ## Auto-render plan (Phase 2) — no local machine needed
 
@@ -100,6 +125,17 @@ The correctness rules are the product; this is the production half of them.
 
 ## Phase log
 
+* **Phase 1 ✅ (2026-10-11)** — The studio renders, and the promise is verified.
+  * Root-caused the hang to `apad` + `-shortest` (A/B proof in the outcome above)
+    and bounded it with `whole_dur` + `-t`; added a deadline and a render log so a
+    failure reports itself instead of eating the session.
+  * `produce.narrate()` -> child process (`islamic/narrate.py`); the model no longer
+    squats on 484 MB while ffmpeg encodes.
+  * Re-rendered all three references, one at a time; published to `web/video/` with
+    posters and a manifest. Verified word-level sync against `audio.segments`,
+    monotonic ink accumulation, and −14.3 LUFS.
+  * Fixed the static-Arabic fitter (line cap -> stage height): isnad 64 px -> 87 px.
+  * Warmed the pending-word colour into the palette.
 * **Phase 0 ✅ (2026-10-11)** — Foundations.
   * Found and removed a **duplicate renderer**: this session had rebuilt
     `cards.py` / `reveal.py` / `video.py` / `make.py` / `timing.py` while the repo

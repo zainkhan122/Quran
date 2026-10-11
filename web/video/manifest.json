@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-11T04:45:02+00:00",
+  "generated_at": "2026-10-11T06:27:59+00:00",
   "count": 3,
   "note": "Every quote is fetched verbatim from api.quran.com / api.alquran.cloud and the fawazahmed0 hadith-api and shown with its citation. Quranic Arabic is real recitation, never synthesised speech.",
   "items": [
@@ -20,28 +20,8 @@
       "collected_at": "2026-10-11",
       "width": 1080,
       "height": 1920,
-      "seconds": 48.43,
-      "size_mb": 4.55
-    },
-    {
-      "file": "quran-81-8.mp4",
-      "poster": "posters/quran-81-8.jpg",
-      "reference": "quran:81:8",
-      "kind": "quran",
-      "source": "Qur'an 81:8 · At-Takwir",
-      "source_ar": "سُورَةُ التَّكۡوِيرِ · آیت 8",
-      "grade": "",
-      "topic": "Daughters — a blessing to be cherished",
-      "topic_ur": "بیٹیاں — ایک عظیم نعمت",
-      "reciter": "Mishary Rashid Alafasy",
-      "arabic": "وَإِذَا ٱلْمَوْءُۥدَةُ سُئِلَتْ",
-      "urdu": "اور جب لڑکی سے جو زندہ دفنا دی گئی ہو پوچھا جائے گا",
-      "english": "And when the girl [who was] buried alive is asked",
-      "collected_at": "2026-10-11",
-      "width": 1080,
-      "height": 1920,
-      "seconds": 11.5,
-      "size_mb": 1.28
+      "seconds": 47.6,
+      "size_mb": 4.27
     },
     {
       "file": "quran-30-21.mp4",
@@ -61,7 +41,27 @@
       "width": 1080,
       "height": 1920,
       "seconds": 52.57,
-      "size_mb": 6.15
+      "size_mb": 5.98
+    },
+    {
+      "file": "quran-81-8.mp4",
+      "poster": "posters/quran-81-8.jpg",
+      "reference": "quran:81:8",
+      "kind": "quran",
+      "source": "Qur'an 81:8 · At-Takwir",
+      "source_ar": "سُورَةُ التَّكۡوِيرِ · آیت 8",
+      "grade": "",
+      "topic": "Daughters — a blessing to be cherished",
+      "topic_ur": "بیٹیاں — ایک عظیم نعمت",
+      "reciter": "Mishary Rashid Alafasy",
+      "arabic": "وَإِذَا ٱلْمَوْءُۥدَةُ سُئِلَتْ",
+      "urdu": "اور جب لڑکی سے جو زندہ دفنا دی گئی ہو پوچھا جائے گا",
+      "english": "And when the girl [who was] buried alive is asked",
+      "collected_at": "2026-10-11",
+      "width": 1080,
+      "height": 1920,
+      "seconds": 11.6,
+      "size_mb": 1.26
     }
   ]
 }

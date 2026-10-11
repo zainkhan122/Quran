@@ -47,33 +47,37 @@ def _run(cmd):
 
 
 def narrate(text: str, out_wav: Path, engine: str = "mms") -> float:
-    """Urdu narration -> 44.1 kHz mono wav. Returns its duration."""
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from naat.tts import NaatTTS, split_breath_groups
-    tts = NaatTTS(engine=engine)
-    tts.load()
-    src_sr = tts.sr
-    parts: list[np.ndarray] = []
-    for i, g in enumerate(split_breath_groups(text)):
-        try:
-            parts.append(tts.say(g, seed=200 + i))
-            parts.append(np.zeros(int(src_sr * 0.32), dtype=np.float32))
-        except Exception as e:
-            print(f"  [produce] narration skip: {e}")
-    if not parts:
-        raise RuntimeError("nothing narrated")
-    full = np.concatenate(parts)
-    peak = float(np.abs(full).max()) or 1.0
-    raw = out_wav.with_suffix(".raw.wav")
-    sf.write(raw, (full / peak * 0.93).astype(np.float32), src_sr)
-    # free the model before ffmpeg/x264 start (2 GB box)
-    tts._model = tts._tok = None
-    del tts
-    import gc
-    gc.collect()
-    _run(["ffmpeg", "-y", "-v", "error", "-i", str(raw), "-ar", str(SR), "-ac", "1",
-          str(out_wav)])
-    raw.unlink(missing_ok=True)
+    """Urdu narration -> 44.1 kHz mono wav. Returns its duration.
+
+    Runs in a SEPARATE process (islamic/narrate.py). In-process synthesis was the
+    cause of a silent, unreproducible failure: after the model is dropped,
+    `del` + `gc.collect()` frees about 484 MB of torch memory back to the Python
+    process but NOT to the OS, and ffmpeg - which needs the bulk of a 2 GB box to
+    encode 1080x1920 - was then killed. A signal death produces no stderr at all,
+    so the video simply failed with an empty error. A child process that exits
+    after writing the wav hands the whole box back before encoding starts.
+    """
+    out_wav = Path(out_wav)
+    out_wav.parent.mkdir(parents=True, exist_ok=True)
+    txt = out_wav.with_suffix(".txt")
+    txt.write_text(text, encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "islamic.narrate", "--text-file", str(txt),
+         "--out", str(out_wav), "--engine", engine],
+        capture_output=True, text=True,
+        cwd=str(Path(__file__).resolve().parent.parent))
+    txt.unlink(missing_ok=True)
+
+    if proc.returncode != 0 or not out_wav.exists():
+        raise RuntimeError(
+            "Urdu narration failed (islamic.narrate). "
+            "Check that 'bash setup.sh --check' reports torch and transformers.\n"
+            + proc.stderr.strip()[-700:])
+
+    skipped = [l for l in proc.stderr.splitlines() if "group" in l and "failed" in l]
+    for l in skipped:
+        print(f"  [produce] narration {l.strip()}")
     return _dur(out_wav)
 
 
