@@ -1,5 +1,7 @@
-node_modules/
-.cache/
+# build artifacts and caches - the repo holds source, not renders
+output/
+.content-cache/
 __pycache__/
 *.pyc
-output/_tmp/
+.cache/
+node_modules/
