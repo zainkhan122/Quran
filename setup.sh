@@ -101,17 +101,30 @@ done
 
 # --- 2. python packages ----------------------------------------------------
 say "python packages"
+
+# One pip front door, because the two environments disagree:
+#   * this sandbox installs into the system interpreter as root;
+#   * a GitHub runner's Ubuntu is PEP 668 "externally managed", so the exact same
+#     command fails outright unless --break-system-packages is passed.
+# Try the plain form first (correct wherever it works), then the flagged form.
+pipi() {
+  pip install -q --disable-pip-version-check "$@" 2>/dev/null \
+    || pip install -q --disable-pip-version-check --break-system-packages "$@" 2>&1 | tail -3
+}
+
 if [[ $CHECK_ONLY == 0 ]]; then
-  pip install -q --disable-pip-version-check \
-    "pillow>=10" numpy scipy soundfile psutil requests 2>&1 | tail -3
+  pipi "pillow>=10" numpy scipy soundfile psutil requests
 fi
 
 # TTS is only needed for the Urdu narration half of a video. It is a large
 # download, so failures here are reported but not fatal for card rendering.
 if [[ $CHECK_ONLY == 0 ]]; then
-  pip install -q --disable-pip-version-check "setuptools<81" \
-    --extra-index-url https://download.pytorch.org/whl/cpu torch 2>&1 | tail -3
-  pip install -q --disable-pip-version-check transformers 2>&1 | tail -3
+  # --index-url (exclusive), NOT --extra-index-url: with an extra index pip can
+  # resolve the PyPI 'torch' wheel, which bundles CUDA and is ~900 MB+. We want
+  # the CPU build, and nothing else in this command comes from PyPI.
+  pipi "setuptools<81"
+  pipi torch --index-url https://download.pytorch.org/whl/cpu
+  pipi transformers
 fi
 
 python3 - <<'PY'
