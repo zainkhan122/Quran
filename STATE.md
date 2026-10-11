@@ -6,11 +6,10 @@ If this file and the repo disagree, the repo wins — fix this file.
 
 ## ⚠ One commit is local-only (2026-10-11)
 
-`38564e5` (**was `6c5eadf`** — the history was rewritten again to drop 39.1 MB
-of retired renders, see `docs/CLEANUP-LOG.md`) — the approved voice, all three
-clips re-rendered — is **committed but not pushed.** The remote is still at
-`7134eeb`, which is the pre-rewrite tip, so this **needs `--force-with-lease`**,
-not a plain push. The sandbox rolled back mid-session and took `/tmp/.ght` with it
+**Local tip is `73f3194`. The remote is at `7134eeb`.** Three commits are
+unpushed — the approved voice (`e60f5a0`, all three clips re-rendered), the
+token note, and the 39.1 MB history squeeze (`73f3194`). The rewrite moved every
+local sha, so this **needs `--force-with-lease`**, not a plain push. The sandbox rolled back mid-session and took `/tmp/.ght` with it
 (by design: the token never lives inside `/home/user`, so a snapshot can never
 leak it). `.git/config` went too; it was restored from
 `setup/git-config.template`.
