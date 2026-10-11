@@ -16,17 +16,72 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-CHECK_ONLY=0
-[[ "${1:-}" == "--check" ]] && CHECK_ONLY=1
-
-SUDO=""
-if [[ "$(id -u)" != "0" ]] && command -v sudo >/dev/null 2>&1; then SUDO="sudo"; fi
-
 say() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 ok()  { printf '   ok    %s\n' "$*"; }
 bad() { printf '   MISS  %s\n' "$*"; }
 
 FAILED=0
+
+CHECK_ONLY=0
+[[ "${1:-}" == "--check" ]] && CHECK_ONLY=1
+
+# --check is the session-start command. It verifies the toolchain, the shaping
+# library, the fonts and the ornament in a few seconds and exits non-zero if
+# anything is missing. It never installs and never touches the network. The full
+# run stays available as the repair path.
+if [[ $CHECK_ONLY == 1 ]]; then
+  rc=0
+  for bin in ffmpeg ffprobe; do
+    if command -v "$bin" >/dev/null 2>&1; then ok "$bin"; else bad "$bin"; rc=1; fi
+  done
+
+  python3 - <<'PYCHK'
+import importlib, sys
+from PIL import features
+bad = 0
+for mod, label, required in (("PIL", "pillow", 1), ("numpy", "numpy", 1),
+                             ("scipy", "scipy", 1), ("soundfile", "soundfile", 1),
+                             ("torch", "torch (Urdu voice)", 0),
+                             ("transformers", "transformers (Urdu voice)", 0)):
+    try:
+        importlib.import_module(mod); print(f"   ok    {label}")
+    except Exception:
+        print(f"   {'MISS' if required else 'note'}  {label}")
+        bad = bad or required
+if features.check("raqm"):
+    print("   ok    raqm (complex text shaping)")
+else:
+    print("   MISS  raqm - Urdu will not shape"); bad = 1
+sys.exit(bad)
+PYCHK
+  [[ $? != 0 ]] && rc=1
+
+  if python3 tools/fetch_fonts.py --check >/dev/null 2>&1; then
+    ok "fonts verified"
+  else
+    bad "fonts (run: bash setup.sh)"; rc=1
+  fi
+
+  missing=""
+  for t in girih arabesque arches; do
+    [[ -f "assets/textures/$t.png" ]] || missing="$missing $t"
+  done
+  if [[ -z "$missing" ]]; then ok "ornament (girih, arabesque, arches)"
+  else bad "ornamental assets:$missing"; rc=1; fi
+
+  echo
+  if [[ $rc == 0 ]]; then
+    echo "ready.  next: python3 -m islamic.produce --ref quran:30:21 --topic marriage"
+  else
+    echo "not ready - run: bash setup.sh" >&2
+  fi
+  exit $rc
+fi
+
+
+SUDO=""
+if [[ "$(id -u)" != "0" ]] && command -v sudo >/dev/null 2>&1; then SUDO="sudo"; fi
+
 
 # --- 1. system tools -------------------------------------------------------
 say "system tools"

@@ -82,16 +82,23 @@ stray glyph beside real Qur'anic text is a serious error.
 ## Quick start
 
 ```bash
-bash setup.sh                                  # installs ffmpeg, deps, verifies fonts
+bash setup.sh --check                          # session start: verify in seconds
+bash setup.sh                                  # repair/install path (~3 min cold)
 python3 tools/motifs.py                        # which topics have their own art
 python3 -m islamic.produce --ref quran:30:21 --topic marriage
 python3 -m islamic.produce --ref ibnmajah:224 --topic knowledge --english
-python3 tools/publish.py                       # copy into web/video + rebuild manifest
+python3 tools/publish.py                       # build folders -> web/video + manifest
 python3 -m http.server 8000 --directory web    # the site
 ```
 
 `setup.sh` is not optional: this sandbox keeps only files under `/home/user`, so
 ffmpeg, the Python wheels and the fonts all have to be re-asserted each session.
+Packages, `/tmp` and every running process are lost on a reset; the repo is the
+only memory, which is why state lives in `STATE.md` instead of in the chat.
+
+**Work one phase per session.** `PHASES.md` holds the session rules, the phase
+table and the dated log; `STATE.md` is the one-screen resume capsule. Start a
+session by reading those two, not the whole document set.
 
 ### Topics
 
@@ -122,14 +129,18 @@ islamic/
   timings.py    per-word timings from api.quran.com audio.segments
   studio.py     the renderer: design system, layout, ornament, frame loop
   produce.py    the CLI that ties it together
-  make.py       legacy multi-scene builder (kept for reference)
+  narrate.py    Urdu narration in a child process (keeps the box free for ffmpeg)
 tools/
-  fetch_fonts.py  download + verify OFL fonts (repairs truncated files)
+  fetch_fonts.py  download + verify OFL fonts (verify by magic bytes, not name)
   motifs.py       the 2D art registry and its prompts
-  publish.py      build folders -> web/video + manifest.json
+  publish.py      build folders -> web/video + manifest.json + posters, prunes stale
 naat/           Urdu TTS (used for translation narration only)
 web/            the site: index.html, videos, fonts, posters
 assets/         fonts/, textures/, motifs/
+PHASES.md       session rules, phase table, dated log       <- read first
+STATE.md        one-screen resume capsule                    <- then this
+BLUEPRINT.md    architecture and operating doctrine
+ASSESSMENT.md   historical TTS survey (not part of the operating set)
 ```
 
 ## Publishing

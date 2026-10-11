@@ -199,3 +199,56 @@ whole pipeline runnable on the free tier.
 * Language: the Urdu translation is published text (Jalandhry) and is read by
   TTS; a human voice would be better and is a naming/consent problem, not a
   technical one.
+
+---
+
+## 8 · Operating doctrine
+
+The discipline below is adopted from `zainkhan122/yt-tts · reels-studio`, a
+sibling system that had already solved the problems this one was re-learning:
+sessions that time out, a 2 GB sandbox, state that has to survive a reset, and a
+render that has to happen with no local machine. Each rule is here because it
+fixed something, not because it sounds good.
+
+### Adopted
+
+| Practice | What it fixes here |
+|---|---|
+| **One phase per session**, in a table with a dated log | Long sessions have timed out. A phase is small enough to finish, verify and commit. |
+| **`setup.sh` as the first command**, idempotent, with a `--check` fast path | Nothing installed survives a reset. Re-entry has to be one command, not a memory test. |
+| **At most one heavy job at a time** | Two memory-heavy jobs in 2 GB is how ffmpeg dies silently and ships a truncated video. |
+| **State written to the repo, not the conversation** — a one-screen `STATE.md` plus a phase log | The repo is the memory. A session that has to be re-derived from chat is a session already half lost. |
+| **Retrieval over reading** — scripts that print answers instead of files pasted into the transcript | Reading to reason is what fills a context window and ends a session early. Read in full only to edit. |
+| **Cloud renders on free GitHub runners** (4 vCPU / 16 GB on a public repo) | The 2 GB sandbox is the binding constraint on quality and on what can run at all. Renders there are 6–17× faster. |
+| **QA gates before publish**, and a publish step separate from the render step | A render that has not passed a check is a draft. Publishing is its own decision. |
+| **Receipts in git** — what was published, when, with what hash | Prevents the one unrecoverable mistake: re-uploading or overwriting a live asset. |
+| **Secrets in Actions secrets, a vault outside the workspace, nothing in the repo** | The workspace is snapshotted and shareable. Credentials must never be either. |
+| **A storage budget with pruning after verification** | Snapshots are capped (~128 MB); build directories are regenerable and must stay out of git. |
+| **An asset policy written down**: origin, licence basis and digest for everything that reaches a frame | "Attribution" is not a licence. Every visual needs a recorded basis. |
+
+### Not adopted, and why
+
+* **Their content model.** reels-studio is an AI-tools shorts factory; the rules
+  that make it work (hook, retention, trend radar) are orthogonal to the constraint
+  that governs this project, which is that sacred text is fetched verbatim and
+  never authored.
+* **Their agent-critic layers and model comparison lab.** Valuable for judging a
+  generated script; this pipeline has no generated script to judge. The correctness
+  gates here are deterministic and cheap: citation present, translation verbatim,
+  isnad not narrated, recitation real.
+* **Their publishing providers (Buffer, Meta, YouTube API).** Free and useful, but
+  they are a delivery question and belong to a later phase, not to the renderer.
+
+### Consequences for this repo
+
+Four documents, each with one job — no more:
+
+| Document | Job |
+|---|---|
+| `README.md` | What this is and how to run it |
+| `PHASES.md` | The plan, the session rules, the phase log |
+| `STATE.md` | The one-screen resume capsule |
+| `BLUEPRINT.md` | How it is built, and the doctrine above |
+
+`ASSESSMENT.md` is kept as a historical record of the TTS survey and the
+"reading, not reciting" correction; it is not part of the operating set.
