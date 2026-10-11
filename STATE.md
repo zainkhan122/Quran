@@ -1,24 +1,59 @@
-# State — 2026-10-11 (Phases 0-3 done; cloud dispatch pending a token)
+# State — 2026-10-11 (Phases 0-4a done; cloud dispatch pending a token)
 
 Resume capsule. One screen. If this file and the repo disagree, the repo wins —
 fix this file.
 
 ## Where things stand
 
-* **Phases 0, 1 and 3 are complete.** The studio renders, the three clips are
-  published to `web/video/`, and nothing can reach the site now without passing the
-  gates in `tools/check_video.py`.
+* **Phases 0, 1, 3 and 4 are complete.** The studio renders, the three clips are
+  published to `web/video/`, nothing can reach the site without passing the gates
+  in `tools/check_video.py`, and nothing can be *planned* whose topic the verse
+  does not carry (`tools/check_relevance.py`).
 * **Phase 2 is built and rehearsed but not dispatched.** The outstanding step is the
   one that needs GitHub credentials — push, then dispatch the run. See *The one thing
   blocking Phase 2*.
-* **Three commits are waiting to be pushed** (Phase 2 and Phase 3 work). They are a
-  clean fast-forward over `origin/main`; no force is needed.
+* **The card shows Arabic word-by-word, Urdu, and — with `--english` — the
+  English translation; `--narrate english` makes the *voice* English. They are
+  separate flags on purpose. Verified: `web`-quality frame at
+  `english-sample-frame.png`.
+* **Narration now reads in flow, and can speak English.** `say_flow()` reads a
+  passage in one pass instead of one utterance per line with a flat glue; dead
+  air in the clip fell 12.0% -> 7.2% (male) and 15.3% -> 3.5% (female), N=5.
+  `--narrate english` renders the same card with an English voice; `en` (Lessac)
+  sounds better but is research-licensed, `en_free` (LibriTTS-R, CC BY 4.0) is
+  the shippable one. Both need their declared pace or they run ~40 wpm too fast.
+* **Five commits are waiting to be pushed** (Phase 2, 3, 4 and 4a work). Clean
+  fast-forward over `origin/main`; no force is needed.
+* **The narration voice is MIT now.** `facebook/mms-tts-urd-script_arabic` is
+  CC-BY-NC — non-commercial — and was replaced by Piper `ur_PK-fasih` (male, MIT,
+  63 MB, RTF 0.08, 6.4x faster). `--engine mms` still selects the old one; do not
+  ship it.
+
+## Read this first, every session
+
+**A commit made in a session does not always survive the sandbox reset.** On
+2026-10-11 the Phase 4 commit (`89dec05`) was present at the end of the session
+and absent afterwards: `.git` had been rolled back to `67131c2` while the
+*working tree* kept every file. The author's own check ("tree clean") passed at
+the time and proved nothing about persistence.
+
+So the first command of a session is:
+
+```bash
+git log --oneline -3        # is the last session's commit still there?
+git status --porcelain      # if the files are here but untracked, it was lost
+```
+
+If it was lost, the work is not lost with it — re-commit it. Do not assume.
 
 ## Run these before you commit
 
 ```bash
 bash setup.sh --check                          # ~9 s
-python3 -m unittest discover -s tests          # 27 tests, ~10 s, stdlib only
+python3 -m unittest discover -s tests          # 91 tests, ~15 s, stdlib, offline
+python3 tools/check_relevance.py --audit       # topic vs its own refs (needs network)
+python3 tools/voice_metrics.py FILE.wav        # delivery: pauses, pitch range, wpm
+python3 tools/plan_render.py --plan --offline  # the plan the workflow would build
 python3 tools/publish.py                       # gates every clip, then writes the site
 ```
 
@@ -101,6 +136,13 @@ purpose, so the gate cannot rot into a rubber stamp.
   from the same quran.com v4 response that carries the recitation URL. Do not
   reintroduce a forced aligner or a separate timing dataset.
 * **Loudness** is −14.3 LUFS (I) across the set, LRA 4.9.
+* **The voice switch renders.** `--ref quran:81:8 --topic justice` on Piper `fasih`
+  produced 11.23 s / 1.18 MB / −15.0 LUFS, passing `check_video.py` and
+  `check_relevance.py`. Wall time ~15 s.
+* **Topic relevance audits clean.** `tools/check_relevance.py --audit` →
+  **34/34 refs across 10 topics** carried by their own headline. The reviewed
+  pairing (`daughters` + `quran:81:8`) is **refused**, and `plan_render.py` exits 1
+  on it before any runner is spent.
 * **The site serves.** `index.html`, `video/manifest.json`, an MP4 and a poster all
   return 200 from `python3 -m http.server --directory web`.
 
@@ -118,20 +160,37 @@ is missing (the workspace snapshot excludes it), and the PAT lives at `/tmp/.ght
 ## Next session, in order
 
 1. `bash setup.sh --check`; `cp setup/git-config.template .git/config` if the remote
-   is missing. Read `PHASES.md` → Phase 2, then the runbook above.
-2. Restore the token, then `tools/cloud.sh push`.
-3. Dispatch one clip, read its job log, and compare the runner's output against the
-   local render of the same clip — duration, size and loudness should all agree.
-4. If it holds, dispatch the full library, and confirm the Release and the site commit.
-5. Mark Phase 2 done, then start Phase 3: expand `tools/check_video.py` into the full
-   QA layer.
+   is missing. Read `PHASES.md` → Phase 4, then the runbook above.
+2. **Restore the token**, then `tools/cloud.sh push` (now 4 commits).
+3. Dispatch ONE clip, read its job log, and compare the runner's output against the
+   local render — duration, size and loudness should all agree.
+4. If it holds, dispatch the full library. **Re-render `quran-30-21` and `ibnmajah-224`
+   on Piper** — both are still the old MMS audio, and the 52 s clip is the one most
+   likely to expose a breath-group problem. `quran-81-8` is already Piper, but its
+   published headline is still the retired "Daughters — a blessing"; the re-render
+   fixes the frame as well as the voice.
+5. Then Phase 5: `parents` motif, grow `library.json` from the 34 validated refs
+   (~10 at a time, `--audit` after each batch), add `--daily N` rotation.
+6. **Get a native Urdu speaker to hear `urdu-english-voice-samples.mp3`.** That is
+   the only test that settles the robotic question; every number here is a proxy.
 
 ## Open items, honestly
 
-* `parents` still has no motif of its own (7 of 8) — it falls back to the generic
-  islimi layer. Phase 4.
-* Topic reference lists in `islamic/topics.py` are seeds and want a human check
-  before they are treated as authoritative.
+* `parents` still has no motif of its own — it falls back to the generic islimi
+  layer. `justice` and `fairness` are new topics with no motif at all. Phase 5.
+* **The relevance gate cannot certify a translation.** It checks that the words the
+  headline claims actually occur in the text we display. It cannot read context, it
+  cannot see a metaphor, and it says nothing about whether the translation is
+  right. It is a tripwire for one specific failure, not a review.
+* **No Urdu speaker has heard the output.** WER against whisper-base is a weak
+  proxy and could not distinguish the voices. A native speaker is the only test
+  that settles whether it still sounds robotic.
+* **The pause count is noisy.** Piper samples internally, so the same text run 5
+  times gives pause counts from 7.9 to 25.8 per minute. Silence *fraction* is the
+  stable signal and is what the reduction is claimed on. Do not quote a precise
+  pause reduction.
+* **Two of the three published clips carry the non-commercial MMS voice.** They are
+  still up. Re-render before any monetisation.
 * The Urdu translation narration is TTS reading published text. A human voice would
   be better; that is a consent and naming problem, not a technical one.
 * `ibnmajah:224` is graded "See a scholar — this collection contains a range of

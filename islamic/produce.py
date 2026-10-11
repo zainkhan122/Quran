@@ -46,7 +46,12 @@ def _run(cmd):
         raise RuntimeError(f"ffmpeg: {p.stderr[-1200:]}")
 
 
-def narrate(text: str, out_wav: Path, engine: str = "mms") -> float:
+#: Piper `fasih` - MIT, 63 MB, RTF 0.08, male. See islamic/voice.py for the
+#: measurement that made this the default over the CC-BY-NC VITS model.
+DEFAULT_ENGINE = "fasih"
+
+
+def narrate(text: str, out_wav: Path, engine: str = DEFAULT_ENGINE) -> float:
     """Urdu narration -> 44.1 kHz mono wav. Returns its duration.
 
     Runs in a SEPARATE process (islamic/narrate.py). In-process synthesis was the
@@ -124,7 +129,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--topic", default="marriage", choices=list_topics())
     ap.add_argument("--out", default="output/video",
                     help="build folder; publish.py reads videos.json + sources.json here")
-    ap.add_argument("--engine", default="mms", choices=["mms", "mms-ft", "gtts"])
+    ap.add_argument("--narrate", default="urdu", choices=["urdu", "english"],
+                    help="which language the VOICE speaks. The card shows both "
+                         "either way; this only picks what is read aloud.")
+    ap.add_argument("--engine", default=None,
+                    choices=["fasih", "aegis", "en", "en_free",
+                             "mms", "mms-ft", "gtts"],
+                    help="fasih/aegis = Piper Urdu (MIT), en = Piper English "
+                         "(test only), en_free = LibriTTS-R English (CC-BY-4.0), "
+                         "mms = the old CC-BY-NC voice. Default follows "
+                         "--narrate.")
     ap.add_argument("--no-textures", action="store_true")
     ap.add_argument("--landscape", action="store_true")
     ap.add_argument("--english", action="store_true", help="caption the English too")
@@ -156,16 +170,26 @@ def main(argv: list[str] | None = None) -> int:
                   "the citation says so on the frame")
 
     # ---- 2. narration ----------------------------------------------------
+    from .voice import default_voice
+    lang = "en" if a.narrate == "english" else "ur"
+    engine = a.engine or default_voice(lang)
+    script = (item.english if lang == "en" else item.urdu) or ""
+    if lang == "en" and not script:
+        raise SystemExit(
+            f"no English text on {item.reference}; this edition has no English "
+            f"translation, so --narrate english cannot read anything")
+
     nar_secs = 0.0
     nar = None
-    if item.urdu:
+    if script:
         from .sources import has_isnad
-        if item.kind == "hadith" and has_isnad(item.urdu):
+        if item.kind == "hadith" and lang == "ur" and has_isnad(item.urdu):
             print("  [produce] isnad present — card only, no auto-narration")
         else:
             nar = out / "narration.wav"
-            nar_secs = narrate(item.urdu, nar, engine=a.engine)
-            print(f"[produce] Urdu narration {nar_secs:.1f}s")
+            nar_secs = narrate(script, nar, engine=engine)
+            label = "English" if lang == "en" else "Urdu"
+            print(f"[produce] {label} narration {nar_secs:.1f}s (voice {engine})")
 
     # ---- 3. timeline -----------------------------------------------------
     lead, tail = 0.9, 1.6

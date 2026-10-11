@@ -17,8 +17,8 @@ sessions (installed packages, `/tmp` and every process are lost; only files unde
 3. **Keep the transcript small.** State lives in the repo, not the conversation
    (see *Evidence rules*). Retrieve with a script instead of reading whole files.
 4. **Run the suite before committing.** `python3 -m unittest discover -s tests`
-   — 27 tests, ~10 s, no dependencies. The gates protect publication, so a change
-   to them must be proven, not assumed.
+   — 91 tests, ~15 s, no dependencies, no network. The gates protect publication,
+   so a change to them must be proven, not assumed.
 5. **End the session with:** workspace clean, `PHASES.md` status + phase log
    updated, `STATE.md` refreshed, everything committed and pushed.
 6. **Never leave a half-edited file.** Re-run the file after each patch; a
@@ -33,10 +33,12 @@ sessions (installed packages, `/tmp` and every process are lost; only files unde
 | 1 | **Make the studio render at all.** Fix the ffmpeg tail-hang; move Urdu TTS into a short-lived process; render the three clips | 3 MP4s + posters + `manifest.json` | ✅ 2026-10-11 |
 | 2 | **Cloud render.** Free GitHub runners (4 vCPU / 16 GB) instead of the 2 GB sandbox; outputs to a Release; no secrets needed | `.github/workflows/render.yml` | 🔨 built + rehearsed; needs a token to push and dispatch |
 | 3 | **QA gates.** Machine checks that must pass before a video reaches `web/video/` | `tools/check_video.py` (file + correctness gates), wired into `tools/publish.py`, with `tests/` | ✅ 2026-10-11 |
-| 4 | **Coverage.** `parents` motif (8th of 8), verify the seeded topic references against a human-checked list, render the 8-topic library | clips for every topic | |
-| 4b | optional: regenerate `assets/motifs/` procedurally from the prompts in `tools/motifs.py`. The earlier geometric generator was retired in Phase 0 as unused duplication — the committed PNG set is the source of truth, so regeneration needs a spec first | | |
-| 5 | **Publishing.** Site polish; optional scheduled render + release; a receipt journal so nothing is ever re-uploaded | | |
-| 6 | optional: long-form cuts, landscape variants, an analytics loop (views → topic picks) | | |
+| 4 | **Voice, relevance, cadence.** Replace the CC-BY-NC voice; make the reviewed topic/ayah mismatch a machine check; measure what a 3-5/day library needs | `islamic/voice.py`, `islamic/urdu.py`, `islamic/relevance.py`, `tools/check_relevance.py`, `RESEARCH.md` | ✅ 2026-10-11 |
+| 4a | **Flow, and English.** The robotic pauses traced to our own per-line synthesis + flat glue; read the passage in one pass. Add an English voice path and a delivery-measurement instrument | `islamic/voice.py` `say_flow`, `islamic/english.py`, `tools/voice_metrics.py`, `--narrate` | ✅ 2026-10-11 |
+| 5 | **Coverage.** `parents` motif (8th of 8), grow `library.json` from the 34 validated refs, add `--daily N` rotation, render the whole library | clips for every topic | |
+| 5b | optional: regenerate `assets/motifs/` procedurally from the prompts in `tools/motifs.py`. The earlier geometric generator was retired in Phase 0 as unused duplication — the committed PNG set is the source of truth, so regeneration needs a spec first | | |
+| 6 | **Publishing.** Site polish; optional scheduled render + release; a receipt journal so nothing is ever re-uploaded | | |
+| 7 | optional: long-form cuts, landscape variants, an analytics loop (views → topic picks) | | |
 
 ### Phase 1 outcome — both defects closed, with the measurement
 
@@ -149,6 +151,63 @@ The correctness rules are the product; this is the production half of them.
 * **Verify by re-running the file**, not by reading the diff.
 
 ## Phase log
+
+* **Phase 4a ✅ (2026-10-11)** — The robotic pauses, and English.
+  * The complaint was right and the reference repo had already measured it:
+    creators pause 1.5 times a minute, line-by-line synthesis 19-23. Ours was
+    worse than theirs — every breath group was its own utterance with a flat
+    0.30 s glued after it, *and* Piper already splits sentences internally, so we
+    were double-segmenting. Fixed by `say_flow()`: read the whole passage in one
+    pass; top the join up to a target instead of appending to whatever tail the
+    model left; and use the phoneme string to tell whether the engine broke a
+    sentence or a clause (`.` vs `,`) so each gets its own amount of air.
+  * Measured, N=5: silence in the clip 12.0% -> **7.2%** (male voice) and
+    15.3% -> **3.5%** (female). The pause *count* is noisy run to run (7.9-25.8
+    for one configuration), so it is reported with its spread and not claimed as
+    a win. Two "tweaks" were measured, found worse and dropped: slowing Urdu made
+    pauses worse and barely changed duration.
+  * `--narrate english` renders the same card with an English voice. Both
+    English voices run 227-245 wpm at the model's own pace against a creators'
+    median of 184.5, so pace is now declared per voice: 179 and 183 wpm. Lessac
+    sounds better and carries a Blizzard research licence — flagged `test_only`.
+    LibriTTS-R (CC BY 4.0, 904 speakers) is the one that can ship.
+  * `tools/voice_metrics.py` measures delivery the way the reference study does
+    (pauses >=150 ms per minute, semitones, wpm) so the two are comparable — and
+    its own correctness is pinned by tests against synthetic audio with a known
+    answer, because a wrong ruler makes every measurement wrong.
+  * 91 tests (was 60). The Urdu normaliser strips Latin script and the English
+    one must not; there is a test that fails if the two are ever interchanged.
+
+* **Phase 4 ✅ (2026-10-11)** — Voice, relevance, cadence. Three things, all of them
+  answers to a question that was asked rather than work that was scheduled.
+  * **The narration voice was unshippable.** `facebook/mms-tts-urd-script_arabic`
+    is **CC-BY-NC-4.0** — non-commercial. Measured against the two Piper Urdu
+    voices: Piper is **6.4x faster** (RTF 0.08 vs 0.51), **63 MB vs 145 MB**, and
+    **MIT**. New `islamic/voice.py`, default `ur_PK-fasih` (male), `aegis` female.
+    Verified end to end — `--ref quran:81:8 --topic justice` renders 11.23 s in
+    ~15 s wall and passes both gates.
+  * **The robotic sound is the text, not the model.** Urdu omits short vowels, so
+    the engine is guessing at sounds it cannot see (Ali & Hussain, CLT10: "it
+    would not be possible to create a text to speech system of Urdu using this
+    under-specified input text"). The free half is now `islamic/urdu.py`: footnote
+    markers stripped **before** digits expand (`۱؎` was being read aloud as "one"),
+    digits spelled as words, translator's brackets turned into pauses rather than
+    deleted, ASCII punctuation replaced with `،` `۔`, and a script whitelist so a
+    stray Latin letter cannot be spelled out by an Urdu voice.
+  * **The reviewed mismatch is now a machine check.** The rule is *every claim the
+    headline makes must be matched in the verse's own text* — a shared noun is not
+    a relation. `daughters` + 81:8 fails and keeps failing however the headline is
+    reworded. `--audit` then cleaned the reference lists themselves: **34/34 refs
+    across 10 topics** are carried by their own headline, and three topics lost a
+    verse that never supported them. Enforced in the plan job *and* in the render
+    job, so a single-clip dispatch cannot bypass it.
+  * Two silent-failure bugs found on the way: publishers mix Arabic and Urdu
+    codepoints for the same letter, and `آ` arrives both precomposed and as
+    `ا`+maddah — unfixed, the check would have quietly failed to match the exact
+    words it exists to find.
+  * `RESEARCH.md` written: the TTS measurement, the channel/format findings, and
+    the concrete route to 3-5 clips a day (34 validated refs are already the seed
+    pool; the binding constraint is pairings that survive the gate, not compute).
 
 * **Phase 3 ✅ (2026-10-11)** — Publication gates, and the tests that keep them honest.
   * `tools/check_video.py` now enforces two kinds of check. **File checks**: container,

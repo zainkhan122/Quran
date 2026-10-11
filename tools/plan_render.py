@@ -30,10 +30,21 @@ LIBRARY = ROOT / "library.json"
 # topics.py owns the topic list; importing it keeps the plan honest about which
 # topics the renderer can actually select a headline and a motif for.
 sys.path.insert(0, str(ROOT))
+from islamic.relevance import check, text_for, text_from_record  # noqa: E402
 from islamic.topics import list_topics  # noqa: E402
 
+try:                                    # optional: colour only when a tty
+    _TTY = sys.stdout.isatty()
+except Exception:                       # pragma: no cover
+    _TTY = False
 
-def load_library(path: Path = LIBRARY) -> list[dict]:
+
+def _red(s: str) -> str:
+    return f"\033[31m{s}\033[0m" if _TTY else s
+
+
+def load_library(path: Path = LIBRARY, *, relevance: bool = True,
+                 offline: bool | None = None) -> list[dict]:
     if not path.exists():
         raise SystemExit(f"no clip plan at {path}")
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -64,6 +75,47 @@ def load_library(path: Path = LIBRARY) -> list[dict]:
         # The gate is told which one it is looking at rather than guessing.
         c["require_audio"] = ref.startswith("quran:")
         seen.add(slug)
+
+    # The gate a reviewer had to apply by hand, applied by machine: a topic is
+    # only allowed near a verse whose own words carry the claim the on-screen
+    # headline makes. This runs HERE, in the plan, so a bad pairing stops the
+    # workflow before it spends a runner on it.
+    if relevance:
+        refused = []
+        for c in clips:
+            try:
+                text, how = text_for(c["ref"], c["slug"], offline=offline,
+                                     topic=c["topic"])
+            except Exception as e:
+                # Auto mode (offline=None): a clip already published in this
+                # repo can be checked against the very text it rendered, so the
+                # suite stays offline and deterministic. A clip with no record
+                # and no reachable publisher is a hard stop - silently skipping
+                # the check is how a bad pairing ships.
+                fallback = None
+                if offline is None:
+                    try:
+                        fallback = (text_from_record(c["slug"]), "build record")
+                    except Exception:
+                        fallback = None
+                if fallback and fallback[0]:
+                    text, how = fallback
+                    print(f"plan: {c['slug']} checked against its build record "
+                          f"(publisher unreachable: {type(e).__name__})",
+                          file=sys.stderr)
+                else:
+                    raise SystemExit(
+                        f"cannot read the text for {c['ref']} to check its topic "
+                        f"({type(e).__name__}: {e}). Use --no-relevance-check to "
+                        f"plan anyway, but understand you are skipping the check "
+                        f"that stops an unrelated verse being labelled with a topic.")
+            rep = check(c["topic"], text)
+            if not rep.ok:
+                refused.append(f"  {c['slug']} [{c['ref']}] {rep.reason}")
+        if refused:
+            raise SystemExit(
+                "REFUSED: the plan pairs a topic with a verse that does not "
+                "carry it. Nothing was rendered.\n" + "\n".join(refused))
     return clips
 
 
@@ -98,11 +150,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--only", default="", help="slugs or refs; empty = all")
     ap.add_argument("--tag", default="", help="release tag (default renders-YYYY-MM-DD)")
     ap.add_argument("--plan", action="store_true", help="print a summary, not JSON")
+    ap.add_argument("--offline", action="store_true",
+                    help="check topics against the published build records only")
+    ap.add_argument("--no-relevance-check", action="store_true",
+                    help="skip the topic<->verse gate (you almost never want this)")
     ap.add_argument("--github-output", action="store_true",
                     help="write clips=/tag=/count= for $GITHUB_OUTPUT")
     a = ap.parse_args(argv)
 
-    clips = select(load_library(), a.only)
+    clips = select(load_library(relevance=not a.no_relevance_check,
+                                 offline=True if a.offline else None), a.only)
     tag = a.tag.strip() or default_tag()
 
     if a.plan:

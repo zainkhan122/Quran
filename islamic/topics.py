@@ -28,56 +28,147 @@ TOPICS: dict[str, dict] = {
     "marriage": {
         "label": {"en": "Marriage", "ur": "نکاح"},
         "headline": {"en": "Marriage — love and mercy between spouses", "ur": "نکاح — میاں بیوی کے درمیان محبت اور رحمت"},
-        "quran": ["30:21", "4:1", "65:2-3", "2:187", "24:32"],
+        "claims": {
+            "spouses": ["میاں", "بیوی", "بیویوں", "عورت", "عورتیں", "عورتوں", "نکاح", "شادی", "جوڑا", "زوجیت", "ازواج", "مرد"],
+            "love": ["محبت", "مودت", "مہربانی", "مہربان", "رحمت", "پیار", "الفت", "فضل"],
+        },
+        "requires": ["spouses"],
+        "quran": ["30:21", "4:1", "2:187", "24:32"],
         "hadith": [],
-        "note": "Pairs well with the famous 'mawadda wa rahma' ayah (30:21).",
+        "note": "30:21 is the 'mawadda wa rahma' ayah. 65:2-3 was here and did not "
+                "survive the relevance check (it is about 'iddah and taqwa, not about "
+                "the spouses' bond) - pruned rather than reworded.",
     },
     "children": {
         "label": {"en": "Children", "ur": "اولاد"},
-        "headline": {"en": "Children — raise them with love and du'a", "ur": "اولاد — محبت اور دعا کے ساتھ پرورش"},
-        "quran": ["25:74", "66:6", "17:24", "31:13-14"],
+        "headline": {"en": "Children — raise them with care and du'a", "ur": "اولاد — پرورش اور دعا کے ساتھ"},
+        "claims": {
+            "children": ["اولاد", "بچے", "بچوں", "بیٹا", "بیٹے", "بیٹی", "بیٹیاں", "لڑکا", "لڑکی", "فرزند", "عیال"],
+            "care": ["پرورش", "پالنا", "پالتی", "تربیت", "دعا", "شفقت", "محبت", "رزق", "بچاؤ", "نصیحت", "سلوک", "بچپن"],
+        },
+        "requires": ["children", "care"],
+        "quran": ["25:74", "66:6", "31:13-14"],
         "hadith": [],
-        "note": "17:24 is about kindness to parents; 25:74 is the du'a for family.",
+        "note": "17:24 was listed here but its words are about kindness TO parents, not "
+                "about raising children - it stays in the 'parents' topic only.",
     },
     "daughters": {
         "label": {"en": "Daughters", "ur": "بیٹیاں"},
-        "headline": {"en": "Daughters — a blessing to be cherished", "ur": "بیٹیاں — ایک عظیم نعمت"},
-        "quran": ["81:8-9", "16:97", "17:31", "42:49-50"],
-        "hadith": [],
-        "note": "81:8-9 condemns the pre-Islamic practice of burying daughters; "
-                "search the collections for the hadith on raising daughters well.",
+        "headline": {"en": "Daughters — a gift, and a shield from the Fire",
+                     "ur": "بیٹیاں — اللہ کی عطا، اور جہنم سے آڑ"},
+        "claims": {
+            "daughters": ["بیٹی", "بیٹیاں", "بیٹیوں", "لڑکی", "لڑکیاں", "لڑکیوں", "دختر"],
+            # the positive worth of daughters: given as a gift, or named as a
+            # protection/reward. Deliberately does NOT include bare nouns.
+            "worth": ["عطا", "عنایت", "بخش", "نعمت", "آڑ", "جنت", "نجات", "اجر", "ثواب", "صلہ", "بھلائی"],
+        },
+        "requires": ["daughters", "worth"],
+        "quran": ["42:49-50"],
+        "hadith": ["tirmidhi:1913", "tirmidhi:1912", "tirmidhi:1916"],
+        "note": "81:8 previously sat here under the headline 'a blessing to be "
+                "cherished'. It is about the CRIME of burying infant daughters - the "
+                "subject matched, the claim did not. It now belongs to 'justice', and "
+                "this topic is carried by verses and hadith that actually say daughters "
+                "are a gift and a protection (Tirmidhi 1913: 'they will be a barrier "
+                "from the Fire'; 42:49-50: 'He grants daughters to whom He wills').",
     },
     "business": {
         "label": {"en": "Business & trade", "ur": "کاروبار"},
         "headline": {"en": "Trade — honesty in every deal", "ur": "کاروبار — ہر معاملے میں دیانت"},
-        "quran": ["2:275", "2:282", "62:10", "4:29", "83:1-3"],
+        "claims": {
+            "trade": ["کاروبار", "تجارت", "سودا", "سودے", "خرید", "فروخت", "بیع", "لین دین", "قرض", "معاملہ", "ناپ", "تول"],
+            "honesty": ["دیانت", "حلال", "حرام", "انصاف", "عدل", "امانت", "رضامندی", "گناہ", "ظلم", "کمی", "ناحق"],
+        },
+        "requires": ["trade", "honesty"],
+        "quran": ["2:275", "2:282", "4:29", "83:1-3"],
         "hadith": [],
-        "note": "2:282 is the longest ayah in the Quran — the contract-writing verse.",
+        "note": "62:10 was here; it says 'seek the bounty of Allah', which is about "
+                "provision after prayer, not about honesty in a dealing. Pruned.",
     },
     "women": {
         "label": {"en": "Women", "ur": "عورتوں کے حقوق"},
         "headline": {"en": "Women — equal reward, equal dignity", "ur": "عورتیں — برابر اجر، برابر عزت"},
-        "quran": ["33:35", "4:1", "16:97", "4:19", "9:71"],
+        "claims": {
+            "women": ["عورت", "عورتیں", "عورتوں", "خواتین", "لڑکی"],
+            "dignity": ["اجر", "اجر عظیم", "عزت", "بھلائی", "رحم", "دوست", "صلہ", "برابر", "حقوق", "بخشش"],
+        },
+        "requires": ["women", "dignity"],
+        "quran": ["33:35", "16:97", "4:19", "9:71"],
         "hadith": [],
-        "note": "33:35 names men and women in parallel for every spiritual rank.",
+        "note": "33:35 names men and women in parallel for every spiritual rank. 4:1 "
+                "was here; it is about creation and kinship, and its own words do not "
+                "carry the 'equal reward' claim. Pruned.",
     },
     "parents": {
         "label": {"en": "Parents", "ur": "والدین"},
         "headline": {"en": "Parents — kindness in their old age", "ur": "والدین — بڑھاپے میں حسنِ سلوک"},
+        "claims": {
+            "parents": ["ماں باپ", "والدین", "والد", "ماں", "باپ", "ابو", "امی"],
+            "kindness": ["بھلائی", "احسان", "سلوک", "ادب", "رحمت", "رحم", "دعا", "شکر", "ساتھ دینا", "جھکے", "بڑھاپے"],
+        },
+        "requires": ["parents", "kindness"],
         "quran": ["17:23-24", "31:14-15", "46:15"],
         "hadith": [],
+        "note": "All three verses say 'maan baap' or 'walidain' in their own words and "
+                "name the kindness asked for.",
     },
     "knowledge": {
         "label": {"en": "Knowledge", "ur": "علم"},
-        "headline": {"en": "Knowledge — a path that never ends", "ur": "علم — ایسا راستہ جو کبھی ختم نہ ہو"},
+        "headline": {"en": "Knowledge — read, and ask for more", "ur": "علم — پڑھو، اور مانگتے رہو"},
+        "claims": {
+            "knowledge": ["علم", "جاننا", "پڑھ", "پڑھو", "سیکھ", "سکھایا", "سکھائیں", "سکھائے", "حکمت",
+                          "قلم", "نصیحت", "عقلمند", "دانا", "سکھاتا", "معلوم"],
+        },
+        "requires": ["knowledge"],
         "quran": ["96:1-5", "20:114", "39:9", "58:11"],
-        "hadith": [],
+        "hadith": ["ibnmajah:224"],
+        "note": "96:1-5 is 'iqra'; 20:114 is the du'a for more knowledge. The previous "
+                "headline claimed 'a path that never ends', which none of these verses "
+                "say - the check cannot see a metaphor, so the headline was made literal.",
     },
     "prayer": {
         "label": {"en": "Prayer & du'a", "ur": "دعا"},
         "headline": {"en": "Du'a — turning to Him at every moment", "ur": "دعا — ہر لمحے اُسی کی طرف رجوع"},
+        "claims": {
+            "dua": ["دعا", "دعائیں", "مانگا", "مانگتے", "پکارتا", "پکارنے", "پکارنے والا", "قبول",
+                    "عبادت", "رجوع", "عاجزی", "خوف"],
+        },
+        "requires": ["dua"],
         "quran": ["2:186", "40:60", "7:55-56", "2:201"],
         "hadith": [],
+        "note": "The word du'a itself appears in every one of these four.",
+    },
+    "justice": {
+        "label": {"en": "Justice", "ur": "انصاف"},
+        "headline": {"en": "Justice — the wronged will be heard", "ur": "انصاف — مظلوم کی آواز بھی سنی جائے گی"},
+        "claims": {
+            "wronged": ["مظلوم", "کمزور", "بےکس", "ناحق", "لڑکی", "ظلم", "ناانصافی", "یتیم"],
+            "accounted": ["پوچھا", "پوچھے", "سوال", "حساب", "گناہ", "جرم", "بدلہ", "فیصلہ"],
+        },
+        "requires": ["wronged", "accounted"],
+        "quran": ["81:8-9"],
+        "hadith": [],
+        "note": "This topic exists because of a review: 81:8 ('when the girl buried "
+                "alive is asked') was labelled 'Daughters - a blessing'. It is about a "
+                "crime and an accounting, so it lives here instead. The topic is a "
+                "home for it, not a relabelling - the headline says what the verse says. "
+                "4:135 and 16:90 were tried here and moved out: they command justice, "
+                "they do not name anyone wronged, and the check said so.",
+    },
+    "fairness": {
+        "label": {"en": "Fairness", "ur": "عدل و انصاف"},
+        "headline": {"en": "Fairness — stand for justice, even against yourself",
+                     "ur": "انصاف — حق پر ڈٹو، اپنے خلاف بھی"},
+        "claims": {
+            "fair": ["انصاف", "عدل", "حق", "گواہی", "سچی", "احسان", "قائم"],
+        },
+        "requires": ["fair"],
+        "quran": ["4:135", "16:90"],
+        "hadith": [],
+        "note": "Split out from 'justice' after the audit: these two command justice "
+                "without naming a victim, so they could not honestly carry a headline "
+                "about the wronged being heard. 4:135's own words are the source of the "
+                "'even against yourself' half - it names your own self, parents and kin.",
     },
 }
 
