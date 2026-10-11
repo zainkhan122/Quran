@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-11T11:01:27+00:00",
+  "generated_at": "2026-10-11T11:06:33+00:00",
   "count": 3,
   "note": "Every quote is fetched verbatim from api.quran.com / api.alquran.cloud and the fawazahmed0 hadith-api and shown with its citation. Quranic Arabic is real recitation, never synthesised speech.",
   "items": [
@@ -18,7 +18,7 @@
       "arabic": "وَمِنْ ءَايَٰتِهِۦٓ أَنْ خَلَقَ لَكُم مِّنْ أَنفُسِكُمْ أَزْوَٰجًۭا لِّتَسْكُنُوٓا۟ إِلَيْهَا وَجَعَلَ بَيْنَكُم مَّوَدَّةًۭ وَرَحْمَةً ۚ إِنَّ فِى ذَٰلِكَ لَءَايَٰتٍۢ لِّقَوْمٍۢ يَتَفَكَّرُونَ",
       "urdu": "اور اسی کے نشانات (اور تصرفات) میں سے ہے کہ اُس نے تمہارے لئے تمہاری ہی جنس کی عورتیں پیدا کیں تاکہ اُن کی طرف (مائل ہوکر) آرام حاصل کرو اور تم میں محبت اور مہربانی پیدا کر دی جو لوگ غور کرتے ہیں اُن کے لئے ان باتوں میں (بہت سی) نشانیاں ہیں",
       "english": "And of His signs is that He created for you from yourselves mates that you may find tranquillity in them; and He placed between you affection and mercy. Indeed in that are signs for a people who give thought.",
-      "built_at": "2026-10-11T11:00:37",
+      "built_at": "2026-10-11T11:05:52",
       "narration": {
         "language": "English",
         "voice": "en_michael",
@@ -45,7 +45,7 @@
       "arabic": "حَدَّثَنَا مَحْمُودُ بْنُ غَيْلاَنَ، حَدَّثَنَا أَبُو أُسَامَةَ، عَنِ الأَعْمَشِ، عَنْ أَبِي صَالِحٍ، عَنْ أَبِي هُرَيْرَةَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ طَرِيقًا إِلَى الْجَنَّةِ ‏\"‏ ‏.‏ قَالَ أَبُو عِيسَى هَذَا حَدِيثٌ حَسَنٌ ‏.‏",
       "urdu": "ابوہریرہ رضی الله عنہ کہتے ہیں کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: ”جو علم حاصل کرنے کے ارادہ سے کہیں جائے، تو اللہ اس کے لیے جنت کے راستے کو آسان ( و ہموار ) کر دیتا ہے“ ۱؎۔ امام ترمذی کہتے ہیں: یہ حدیث حسن ہے۔",
       "english": "Narrated Abu Hurairah:that the Messenger of Allah (ﷺ) said: \"Whoever takes a path upon which to obtain knowledge, Allah makes the path to Paradise easy for him",
-      "built_at": "2026-10-11T11:00:20",
+      "built_at": "2026-10-11T11:05:26",
       "narration": {
         "language": "English",
         "voice": "en_michael",
@@ -72,7 +72,7 @@
       "arabic": "وَإِذَا ٱلْمَوْءُۥدَةُ سُئِلَتْ",
       "urdu": "اور جب لڑکی سے جو زندہ دفنا دی گئی ہو پوچھا جائے گا",
       "english": "And when the girl [who was] buried alive is asked",
-      "built_at": "2026-10-11T11:00:09",
+      "built_at": "2026-10-11T11:05:17",
       "narration": {
         "language": "English",
         "voice": "en_michael",
