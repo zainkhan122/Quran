@@ -283,8 +283,18 @@ class TestTheNormalisersAreNotInterchangeable(unittest.TestCase):
         self.assertIn("اللہ", english.normalize_for_speech_en("Say اللہ is One"))
 
 
+import shutil as _shutil
+
+
 class TestTheInstrumentItself(unittest.TestCase):
     """If the ruler is wrong, every measurement is wrong. These pin the ruler."""
+
+    def setUp(self):
+        # The instrument decodes through ffmpeg. The CI plan job deliberately
+        # has no ffmpeg (it gates in seconds; the render job carries the media
+        # toolchain), so skip there - visibly, by name - rather than fail.
+        if not _shutil.which("ffmpeg"):
+            self.skipTest("ffmpeg not installed (the CI plan job); runs where media tools exist")
 
     SR = 22_050
 
