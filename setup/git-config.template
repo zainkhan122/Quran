@@ -1,0 +1,31 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+[remote "origin"]
+	url = https://github.com/zainkhan122/Quran.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "main"]
+	remote = origin
+	merge = refs/heads/main
+[user]
+	name = Arena Agent
+	email = agent@arena.ai
+
+# ---------------------------------------------------------------------------
+# Restore this file when .git/config is missing.
+#
+# The workspace snapshot deliberately excludes .git/config (it is treated as a
+# credential path), so a restored session can find itself with no remote and no
+# author identity, and `git push` fails for a reason that looks unrelated.
+#
+#     cp setup/git-config.template .git/config
+#
+# This template intentionally contains NO token. Authenticate the push itself:
+#
+#     git -c credential.helper= \
+#       push "https://x-access-token:$(cat /tmp/.ght)@github.com/zainkhan122/Quran.git" main
+#
+# Never write a token into .git/config or .git/credentials - neither is
+# snapshotted safely, and the repo is public.
+# ---------------------------------------------------------------------------
