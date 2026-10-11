@@ -28,7 +28,7 @@ sessions (installed packages, `/tmp` and every process are lost; only files unde
 |---|---|---|---|
 | 0 | **Foundations.** One renderer (two existed), clean tree, phased plan, state capsule, repo pushed | this file, `STATE.md`, single-source renderer, clean tree | ✅ 2026-10-11 |
 | 1 | **Make the studio render at all.** Fix the ffmpeg tail-hang; move Urdu TTS into a short-lived process; render the three clips | 3 MP4s + posters + `manifest.json` | ✅ 2026-10-11 |
-| 2 | **Cloud render.** Free GitHub runners (4 vCPU / 16 GB) instead of the 2 GB sandbox; outputs to a Release; secrets in Actions | `.github/workflows/render.yml` | ⏳ next |
+| 2 | **Cloud render.** Free GitHub runners (4 vCPU / 16 GB) instead of the 2 GB sandbox; outputs to a Release; no secrets needed | `.github/workflows/render.yml` | 🔨 built + rehearsed; awaiting a token to push and dispatch |
 | 3 | **QA gates.** Machine checks that must pass before a video reaches `web/video/` | `tools/qa.py` + gate wired into publish | |
 | 4 | **Coverage.** `parents` motif (8th of 8), verify the seeded topic references against a human-checked list, render the 8-topic library | clips for every topic | |
 | 4b | optional: regenerate `assets/motifs/` procedurally from the prompts in `tools/motifs.py`. The earlier geometric generator was retired in Phase 0 as unused duplication — the committed PNG set is the source of truth, so regeneration needs a spec first | | |
@@ -79,6 +79,28 @@ Word-by-word sync was verified against the publisher's own timings, not by eye:
 settled-word ink accumulates monotonically at t≈1.0 s / 1.5 s / 2.9 s, matching the
 three word boundaries in `audio.segments`. Averaged programme loudness −14.3 LUFS.
 
+## Phase 2 — what was built, and what is left
+
+Built and rehearsed locally; the only thing not yet done is the part that needs
+GitHub credentials (push, then dispatch the run).
+
+| Piece | Purpose | Rehearsed? |
+|---|---|---|
+| `library.json` | The clip plan: reference -> topic. References only | ✅ `tools/plan_render.py --plan` |
+| `tools/plan_render.py` | Turns the plan into a render matrix; refuses a slug/ref mismatch, an unknown topic or a duplicate slug | ✅ incl. the failure paths, and `$GITHUB_OUTPUT` single-line safety |
+| `tools/check_video.py` | The hard gate before anything is published | ✅ 3 real clips pass; silent / landscape / truncated fixtures each fail with a reason |
+| `tools/publish.py` | A clip is now self-describing (`<slug>.mp4` + `<slug>.build.json`), so parallel runners need no merged index; non-destructive by default | ✅ published from artifacts alone; subset run keeps the rest; `--exact` prunes |
+| `.github/workflows/render.yml` | plan -> render matrix -> gate -> publish | ✅ YAML + structure + matrix expansion checked locally |
+| `setup.sh` | Runner-safe: PEP 668 fallback, CPU-only torch index | ✅ `--check` |
+| `tools/cloud.sh` | push / render / runs / logs / releases in one command; never echoes the token | ✅ incl. the no-token path |
+
+**Why a token is needed at all:** the workflow itself needs none — it uses GitHub's
+automatic `GITHUB_TOKEN` for the release and the commit, and no personal access
+token may be added to it. A PAT is only needed to push commits from this workspace
+and to dispatch a run over the API. The workspace snapshot deliberately excludes
+`/tmp`, so the token from the previous session did not survive the sandbox reset;
+that is the design working, not a fault.
+
 ## Auto-render plan (Phase 2) — no local machine needed
 
 Facts checked 2026-10-11 against GitHub's published runner specs.
@@ -125,6 +147,25 @@ The correctness rules are the product; this is the production half of them.
 
 ## Phase log
 
+* **Phase 2 🔨 (2026-10-11)** — Cloud render built and rehearsed; dispatch pending a token.
+  * `.github/workflows/render.yml`: plan -> one runner per clip (max-parallel 5) ->
+    per-clip gate -> single publish job that writes the site, verifies it, uploads
+    the Release and commits `web/`. No secrets: the automatic `GITHUB_TOKEN` covers
+    both the release and the commit.
+  * `library.json` is the clip plan, and `tools/plan_render.py` refuses a plan that
+    would mislabel a clip. It also emits `require_audio`, so the gate knows a
+    Qur'an clip must carry its recitation while a hadith card may be silent.
+  * `tools/check_video.py` is the seed of the QA layer: mechanically true-or-false
+    checks only. Verified both ways — three real clips pass; deliberate silent,
+    landscape and truncated fixtures each fail with a specific reason.
+  * `tools/publish.py` was reworked so a clip is discovered by its own build
+    record. That is what lets five parallel runners upload two files each and
+    still produce a correct manifest with citations. It is also non-destructive by
+    default: rendering a subset no longer prunes the rest of the library off the
+    site — which it did on the first rehearsal, and that is why `--exact` exists.
+  * `setup.sh` is now runner-safe: a `pipi()` wrapper falls back to
+    `--break-system-packages` for a runner's PEP 668 Ubuntu, and torch installs
+    from an exclusive `--index-url` so pip cannot pull the CUDA wheel by mistake.
 * **Phase 1 ✅ (2026-10-11)** — The studio renders, and the promise is verified.
   * Root-caused the hang to `apad` + `-shortest` (A/B proof in the outcome above)
     and bounded it with `whole_dur` + `-t`; added a deadline and a render log so a
