@@ -4,6 +4,26 @@ Resume capsule. One screen. **A new session starts by reading `RESUME.md`** and
 running `bash tools/resume.sh`; this file is what that script reports from.
 If this file and the repo disagree, the repo wins — fix this file.
 
+## ⚠ One commit is local-only (2026-10-11)
+
+`6c5eadf` — the approved voice, all three clips re-rendered — is **committed but
+not pushed.** The sandbox rolled back mid-session and took `/tmp/.ght` with it
+(by design: the token never lives inside `/home/user`, so a snapshot can never
+leak it). `.git/config` went too; it was restored from
+`setup/git-config.template`.
+
+To finish the push, paste the token again and:
+
+```bash
+printf '%s' '<token>' > /tmp/.ght && chmod 600 /tmp/.ght
+cd /home/user/naat-ai && TOK=$(cat /tmp/.ght) \
+  && git remote set-url origin "https://x-access-token:${TOK}@github.com/zainkhan122/Quran.git" \
+  && git push origin main \
+  && git remote set-url origin "https://github.com/zainkhan122/Quran.git"
+```
+
+Everything else in this file is already true of `6c5eadf`.
+
 ## Where things stand
 
 * **Everything is pushed.** `origin/main` is level with the local branch. The
@@ -12,7 +32,7 @@ If this file and the repo disagree, the repo wins — fix this file.
   gates the *file*; `tools/check_relevance.py` gates the *pairing*; and every
   design instruction the owner has given is pinned by a test in
   `tests/test_design.py` with the reason written next to it.
-* **The published set is current** — re-rendered in this phase, so it carries
+* **The published set is current and now narrated by the approved voice** — re-rendered in this phase, so it carries
   the compact header, the bold ayah, both translation halves and English
   narration.
 * **Cloud dispatch is the outstanding step.** The workflow is built and

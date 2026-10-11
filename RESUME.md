@@ -109,6 +109,8 @@ that persists reliably, so:
   `en_michael` = Kokoro, Apache-2.0, the voice the owner approved) and the card
   always shows both translations. If a clip comes out with no voice, check you
   have not passed `--narrate urdu`.
+* **`/tmp/.ght` does not survive a session boundary** — paste the token again
+  when a push is needed, then follow the recipe in `STATE.md`.
 * **first run each session fetches 353 MB** of Kokoro weights into
   `~/.cache/kokoro` (outside the snapshot). `bash setup.sh` does it;
   `python3 -m islamic.kokoro --check` says whether it is cached.
