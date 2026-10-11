@@ -4,62 +4,42 @@ Resume capsule. One screen. **A new session starts by reading `RESUME.md`** and
 running `bash tools/resume.sh`; this file is what that script reports from.
 If this file and the repo disagree, the repo wins — fix this file.
 
-## ⚠ Local-only: waiting on the token (2026-10-11)
+## Cloud: LIVE and verified (2026-10-11)
 
-Local `main` is ahead of GitHub and **its history was rewritten** (every media
-blob purged, `.git` 47 -> 18 MB), so the push is `--force-with-lease`. The
-staged media for the first release is in `output/release/` (git-ignored, 12.5
-MB). Delete it once uploaded. With the token in `/tmp/.ght`:
+**Site: https://zainkhan122.github.io/Quran/**. Local and GitHub are in sync;
+nothing is waiting on a token.
 
-```bash
-cd /home/user/naat-ai
-tools/cloud.sh upload renders-2026-10-11 output/release/{quran-81-8,quran-30-21,tirmidhi-2646}.{mp4,jpg}
-tools/cloud.sh upload voice-approval output/release/voice-audition-en.mp3
-TOK=$(cat /tmp/.ght); git push --force "https://x-access-token:${TOK}@github.com/zainkhan122/Quran.git" main
-tools/cloud.sh pages-enable
-tools/cloud.sh render && tools/cloud.sh wait     # first real cloud render
-python3 tools/fetch_media.py --check             # every asset is where the manifest says
-rm -rf output/release
-```
-
-## Where things stand
-
-* **Everything is pushed.** `origin/main` is level with the local branch. The
-  remote is the source of truth — the only storage that has never lost a commit.
-* **Phases 0-4c are complete.** The studio renders; `tools/check_video.py`
-  gates the *file*; `tools/check_relevance.py` gates the *pairing*; and every
-  design instruction the owner has given is pinned by a test in
-  `tests/test_design.py` with the reason written next to it.
-* **The published set is current and now narrated by the approved voice** — re-rendered in this phase, so it carries
-  the compact header, the bold ayah, both translation halves and English
-  narration.
-* **Cloud dispatch is the outstanding step.** The workflow is built and
-  rehearsed and has never been run.
-
-## What changed in Phase 4c
-
-Two instructions, each answered with a measurement rather than an opinion.
-
-| asked for | done how | pinned by |
+| piece | state | proof |
 |---|---|---|
-| "heading is taking almost 40% of space... needs to be compact so that main content takes main space" | a hard `HEADER_BUDGET` (12.5% of the frame) replaces "whatever it takes to fit"; type is placed by measured ink, not the font's nominal box | `TestTheHeaderStaysCompact` (5 tests) |
-| "TTS will be in English, not in Urdu. Translation will be in Urdu and English both while TTS will read English" | `--narrate` defaults to `english`; both translations are captioned always; default voice is `en_free` (LibriTTS-R, CC BY 4.0) | `test_the_voice_reads_english_by_default` |
-| (found while checking the result) the honouring of the Prophet drew as an empty box | `for_display()` spells out ligatures the fonts cannot draw; a `.notdef` scan runs over every shipped field | `TestNoMissingGlyphs` |
+| `render.yml` | **green**: plan, 3 parallel renders, publish, Pages | run 38134186361, ~3.5 min end to end, 59-97 s per clip |
+| `pages.yml` | green, deploys from an artifact | 13-16 s; the live manifest timestamp equals the repo's |
+| `cleanup.yml` | green (dry run); weekly cron Sun 04:00 UTC | marked both releases LIVE, refused to prune them, 6/6 assets present |
+| Releases | `renders-2026-10-11` (clips, posters, records), `voice-approval` (audition pack) | `tools/fetch_media.py --check` |
+| git | **0 media files**; `.git` 18 MB | `test_no_media_is_tracked_by_git` |
+| fidelity | cloud durations = local to 0.01 s; voice `en_michael` | build records |
 
-## The card, measured — `python3 tools/layout_report.py`
+The first three cloud runs failed, and each failure was a real defect that had
+never run before: the plan job had no Pillow; a test assumed media in the
+checkout; the publish job had no ffmpeg (it held every clip back, which is the
+fail-safe working). All three are fixed.
 
-| clip | header before | header now | body before | body now |
-|---|---|---|---|---|
-| `quran:81:8` | 12.9% | **10.1%** | 63.2% | **69.8%** |
-| `quran:30:21` | 28.4% | **12.8%** | 47.7% | **67.1%** |
-| `ibnmajah:224` | 12.4% | **10.2%** | 61.0% | **67.1%** |
+**Operating it** (token in `/tmp/.ght`; it does not survive a session):
 
-Two causes, both measured: the Urdu heading reserved **2.6x** its font size as a
-line height while Nastaliq ink is **1.88x** (English 0.97x); and a headline that
-just missed the one-line threshold was re-set at the *largest* size on two
-lines, doubling the block. `_fit_topic` now searches for the largest size whose
-block fits the budget, charging a fixed penalty per extra line so a headline
-that only just wraps does not win over a slightly smaller one-line one.
+    tools/cloud.sh render               # whole library, waits for the run
+    tools/cloud.sh render quran-30-21   # one clip
+    tools/cloud.sh runs | logs <id> | wait <id>
+
+To add or retire a clip, edit `library.json` and render. A clip is retired by
+leaving the plan, never by deleting files.
+
+**Observed, not explained:** a PAT push touching `web/` did not start
+`pages.yml`, although the workflow is active and the push event was recorded.
+Nothing depends on it, because `render.yml` calls Pages directly and dispatch
+works. If the site ever looks stale, run `python3 tools/ghapi.py dispatch pages.yml`.
+
+**Security:** the token reached the workspace once as an uploaded file
+(`uploads/Github.txt`). It was moved to `/tmp/.ght` and the file shredded at
+once, but a snapshot may already have caught it. **Rotate the token.**
 
 ## Cadence: the recommendation (2026-10-11)
 

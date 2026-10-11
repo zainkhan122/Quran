@@ -109,6 +109,9 @@ that persists reliably, so:
   `en_michael` = Kokoro, Apache-2.0, the voice the owner approved) and the card
   always shows both translations. If a clip comes out with no voice, check you
   have not passed `--narrate urdu`.
+* **cloud is live**: `tools/cloud.sh render` renders the library on GitHub and
+  waits for it; the site is https://zainkhan122.github.io/Quran/. Media is in
+  Releases, never in git. Preview locally with `python3 tools/fetch_media.py`.
 * **`/tmp/.ght` does not survive a session boundary** — paste the token again
   when a push is needed, then follow the recipe in `STATE.md`.
 * **first run each session fetches 353 MB** of Kokoro weights into
