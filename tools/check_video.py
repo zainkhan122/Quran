@@ -141,6 +141,17 @@ def correctness_failures(build: dict) -> list[str]:
             bad.append("Qur'an clip has no timings_source — word-level sync "
                        "cannot be evidenced")
 
+    # The authenticity gate's verdict must be in the record and must be a pass.
+    # This is what stops a clip rendered by any other path - an old build, a
+    # hand-run script - from being published around islamic/verify.py.
+    auth = build.get("authenticity") or {}
+    if not auth:
+        bad.append("build record carries no authenticity verdict - it was not "
+                   "rendered through islamic/verify.py")
+    elif not auth.get("ok"):
+        bad.append(f"refused by the authenticity gate: {auth.get('verdict') or '?'}")
+    if kind == "hadith" and "REFUSED" in (build.get("grade") or ""):
+        bad.append("the grade line says REFUSED")
     if kind == "hadith" and not (build.get("grade") or "").strip():
         bad.append("hadith clip carries no grade line, and the frame always "
                    "shows one")

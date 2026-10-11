@@ -82,6 +82,7 @@ def _quran_build(**over) -> dict:
         "arabic": "وَمِنْ ءَايَٰتِهِۦٓ أَنْ خَلَقَ لَكُم مِّنْ أَنفُسِكُمْ أَزْوَٰجًۭا",
         "word_count": 8,
         "seconds": 52.61,
+        "authenticity": {"ok": True, "verdict": "Qur'an - text agreed by 2 independent sources"},
     }
     b.update(over)
     return b
@@ -89,13 +90,19 @@ def _quran_build(**over) -> dict:
 
 def _hadith_build(**over) -> dict:
     b = {
-        "reference": "ibnmajah:224",
-        "source": "Sunan Ibn Majah, Hadith 224",
+        # was ibnmajah:224 until the authenticity gate withdrew it (Very Da'if).
+        # The Arabic is a neutral placeholder ("test text"): the gate checks
+        # that Arabic is present, and a fixture has no business quoting a
+        # narration from memory.
+        "reference": "tirmidhi:2646",
+        "source": "Jami at-Tirmidhi, Hadith 2646",
         "kind": "hadith",
-        "grade": "See a scholar — this collection contains a range of grades",
-        "arabic": "طَلَبُ الْعِلْمِ فَرِيضَةٌ عَلَى كُلِّ مُسْلِمٍ",
+        "grade": "Sahih - graded by Ahmad Shakir, Al-Albani, Zubair Zai",
+        "arabic": "نص تجريبي",
         "word_count": 0,
-        "seconds": 47.64,
+        "seconds": 36.70,
+        "authenticity": {"ok": True,
+                         "verdict": "Sahih - graded by Ahmad Shakir, Al-Albani, Zubair Zai"},
     }
     b.update(over)
     return b
@@ -157,6 +164,22 @@ class TestPromises(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # the plan
 # ---------------------------------------------------------------------------
+
+class TestTheRenderGateRequiresAuthenticity(unittest.TestCase):
+    """A clip cannot be published around islamic/verify.py."""
+
+    def test_a_record_without_a_verdict_is_refused(self):
+        b = _hadith_build(); b.pop("authenticity")
+        self.assertTrue(any("authenticity" in f for f in correctness_failures(b)))
+
+    def test_a_refused_verdict_is_refused(self):
+        b = _hadith_build(authenticity={"ok": False, "verdict": "graded weak"})
+        self.assertTrue(any("refused" in f for f in correctness_failures(b)))
+
+    def test_a_passing_record_passes(self):
+        self.assertEqual(correctness_failures(_hadith_build()), [])
+        self.assertEqual(correctness_failures(_quran_build()), [])
+
 
 class TestPlan(unittest.TestCase):
 

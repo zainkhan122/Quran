@@ -272,6 +272,10 @@ def main(argv: list[str] | None = None) -> int:
                  "narration": {"language": "English" if lang == "en" else "Urdu",
                                "voice": engine if nar_secs else "",
                                "seconds": round(nar_secs, 2)},
+                 # The gate's verdict travels with the clip, so the citation on
+                 # the site can be checked against the policy that passed it.
+                 "authenticity": {"ok": verdict.ok, "verdict": verdict.grade_line,
+                                  "policy": "islamic/verify.py"},
                  "reciter": "Mishary Rashid Alafasy" if words else "",
                  "timings_source": "api.quran.com v4 audio.segments" if words else "",
                  "built_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
