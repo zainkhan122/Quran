@@ -217,8 +217,11 @@ def _body_scrim(img: Image.Image, top: int, bottom: int, pad: int) -> None:
     """
     w, h = img.size
     m = Image.new("L", (w, h), 0)
+    # 88 -> 132. The brief asked for the art to sit behind the words and be
+    # readable through them, not merely present: at 88 the topical motif still
+    # competed with the Arabic on a busy frame.
     ImageDraw.Draw(m).rounded_rectangle(
-        [pad - 20, top - 40, w - pad + 20, bottom + 40], radius=90, fill=88)
+        [pad - 20, top - 40, w - pad + 20, bottom + 40], radius=90, fill=132)
     m = m.filter(ImageFilter.GaussianBlur(int(w * 0.055)))
     dark = Image.new("RGBA", (w, h), (2, 10, 8, 255))
     dark.putalpha(m)
@@ -296,10 +299,47 @@ def fit_lines(text: str, path: Path, max_w: int, max_lines: int, max_h: int,
     return fx, wrap(text, fx, max_w)[:max_lines]
 
 
+#: How much thicker the ayah is drawn than the font's own weight.
+#:
+#: Simulation by stroke rather than by swapping to NotoNaskhArabic-Bold: the
+#: ayah is set in Amiri, and Amiri has no bold. Swapping files to get weight
+#: would change the typeface, which is a bigger change than anyone asked for.
+#: PIL strokes the glyph outline symmetrically, so the letterforms stay Amiri
+#: and only the stems thicken. Scaled with the frame width so it does not read
+#: as a hairline on a 4K render and as a smear on a small one.
+AR_STROKE = 0.0022
+
+
+def balanced_wrap(text: str, font_: ImageFont.FreeTypeFont, max_w: int,
+                  max_lines: int = 2) -> list[str]:
+    """Wrap into at most `max_lines` lines of similar length.
+
+    Greedy wrapping leaves the tail wherever it falls, so a two-line heading can
+    end up with one word on its own line. This tries every split point and keeps
+    the one whose longest line is shortest - which is the split that looks
+    deliberate instead of accidental.
+    """
+    words = text.split()
+    if len(words) <= 1:
+        return [text] if text else []
+    best: list[str] | None = None
+    best_key = None
+    for k in range(1, len(words)):
+        cand = [" ".join(words[:k]), " ".join(words[k:])]
+        if any(font_.getlength(ln) > max_w for ln in cand):
+            continue
+        key = max(font_.getlength(ln) for ln in cand)
+        if best_key is None or key < best_key:
+            best, best_key = cand, key
+    if best is not None:
+        return best
+    return wrap(text, font_, max_w)[:max_lines]
+
+
 def paint_word(frame: Image.Image, xr: int, wy: int, text: str,
                font_: ImageFont.FreeTypeFont, fill, glow: bool = False,
                glow_col=(255, 226, 160), radius: int = 15,
-               alpha: int = 200) -> None:
+               alpha: int = 200, stroke: int = 0) -> None:
     """Draw one Arabic word, optionally with a soft halo (the recited word).
 
     The halo is built as a small RGBA patch around just this word and pasted
@@ -308,7 +348,7 @@ def paint_word(frame: Image.Image, xr: int, wy: int, text: str,
     """
     if not glow:
         ImageDraw.Draw(frame).text((xr, wy), text, font=font_, fill=fill, anchor="ra",
-                                   **RTL)
+                                   stroke_width=stroke, stroke_fill=fill, **RTL)
         return
     bb = font_.getbbox(text, anchor="ra", **RTL)
     pad = radius * 2 + 4
@@ -321,7 +361,8 @@ def paint_word(frame: Image.Image, xr: int, wy: int, text: str,
     dp.text((ax, ay), text, font=font_, fill=(*glow_col, alpha), anchor="ra", **RTL)
     patch = patch.filter(ImageFilter.GaussianBlur(radius))
     ImageDraw.Draw(patch).text((ax, ay), text, font=font_, fill=(*fill, 255),
-                               anchor="ra", **RTL)
+                               anchor="ra", stroke_width=stroke,
+                               stroke_fill=(*fill, 255), **RTL)
     frame.paste(patch, (x0, y0), patch)
 
 
@@ -349,44 +390,82 @@ def layout_words(words: list[dict], font_: ImageFont.FreeTypeFont, max_w: int,
     return rows[:max_rows] if len(rows) > max_rows else rows
 
 
-def _draw_topic(d: ImageDraw.ImageDraw, comp: Comp, w: int, y: int) -> int:
+def _draw_topic(d: ImageDraw.ImageDraw, comp: Comp, w: int, y: int) -> tuple[int, int]:
     """The on-screen topic: explanatory, bold, ONE line per language.
 
-    Two lines total - an English line and an Urdu line. Each auto-shrinks until
-    it fits a single line, so a longer headline loses size, never structure.
-    Returns the y coordinate just past the block.
+    Two lines total - an English line and an Urdu line, BOTH AT THE SAME SIZE
+    (see the cap comment below). Each auto-shrinks until it fits a single line,
+    so a longer headline loses size, never structure.
+
+    Returns (y just past the block, the size both lines were set at).
     """
     pad = int(w * 0.085)
     inner = w - 2 * pad
 
-    fe, lines_en = fit_lines(comp.topic_en, LATIN_B, inner, 1, int(w * 0.10), 1.16,
-                             hi=int(w * 0.053))
-    fu = f(URDU, 20)
-    lines_ur: list[str] = []
+    # BOTH HEADLINES AT ONE SIZE. They used to carry different caps (0.053 for
+    # English, 0.070 for Urdu), which produced a large Urdu line over a small
+    # English one and read as a typo. Each is fitted independently, then both
+    # are re-set at the smaller of the two results - the largest size at which
+    # *both* still fit on one line.
+    cap = int(w * 0.058)
+    floor = int(w * 0.030)
+    # ONE LINE FIRST, two only if one would be unreadably small.
+    #
+    # Allowing two lines by default produced a one-word orphan ("رحمت" alone on
+    # the second line) which looked worse than the size it bought. So: find the
+    # largest size at which each side sits on ONE line, take the smaller of the
+    # two, and accept it if it clears `floor` comfortably. Only a genuinely long
+    # headline - one that would fall below that - is allowed a second line, and
+    # then the wrap is BALANCED rather than greedy so it cannot orphan.
+    one_en, _ = fit_lines(comp.topic_en, LATIN_B, inner, 1, int(w * 0.10), 1.16,
+                          hi=cap, lo=floor) if comp.topic_en else (f(LATIN_B, cap), [])
+    one_ur = f(URDU, floor)
     if comp.topic_ur:
-        fu, lines_ur = fit_lines(comp.topic_ur, URDU, inner, 1, int(w * 0.16), 2.6,
-                                 hi=int(w * 0.070))
+        one_ur, _ = fit_lines(comp.topic_ur, URDU, inner, 1, int(w * 0.16), 2.6,
+                              hi=cap, lo=floor)
+    target = min(one_en.size, one_ur.size) if comp.topic_ur else one_en.size
+    min_one = int(w * 0.038)          # smallest single-line size we will accept
+
+    if target >= min_one:
+        common = target
+        fe, fu = f(LATIN_B, common), f(URDU, common)
+        lines_en = wrap(comp.topic_en, fe, inner) if comp.topic_en else []
+        lines_ur = wrap(comp.topic_ur, fu, inner) if comp.topic_ur else []
+    else:
+        two_en, _ = fit_lines(comp.topic_en, LATIN_B, inner, 2, int(w * 0.20), 1.16,
+                              hi=cap, lo=floor) if comp.topic_en else (f(LATIN_B, cap), [])
+        two_ur = f(URDU, floor)
+        if comp.topic_ur:
+            two_ur, _ = fit_lines(comp.topic_ur, URDU, inner, 2, int(w * 0.32), 2.6,
+                                  hi=cap, lo=floor)
+        common = min(two_en.size, two_ur.size) if comp.topic_ur else two_en.size
+        fe, fu = f(LATIN_B, common), f(URDU, common)
+        lines_en = balanced_wrap(comp.topic_en, fe, inner, 2) if comp.topic_en else []
+        lines_ur = balanced_wrap(comp.topic_ur, fu, inner, 2) if comp.topic_ur else []
 
     top_pad = int(w * 0.020)
     gap = int(w * 0.022)
-    h_en = int(fe.size * 1.16)
-    h_ur = int(fu.size * 2.6) if lines_ur else 0
+    h_en = int(fe.size * 1.16) * max(len(lines_en), 1)
+    h_ur = int(fu.size * 2.6) * len(lines_ur) if lines_ur else 0
     block_h = top_pad + h_en + gap + h_ur + int(w * 0.016)
     plate = [pad - 24, y - top_pad, w - pad + 24, y + block_h]
     d.rounded_rectangle(plate, radius=22, fill=(0, 0, 0, 78),
                         outline=(*GOLD_DIM, 150), width=2)
     # a thin gold rule under the English line reads as "title, then subtitle"
     yr = y + h_en + gap // 2
+    # (the rule sits between the two languages, not between two lines of one)
     d.line([(w // 2 - int(w * 0.16), yr), (w // 2 + int(w * 0.16), yr)],
            fill=(*GOLD_DIM, 170), width=2)
 
     cy = y + top_pad
-    for ln in lines_en:
-        d.text((w // 2, cy + h_en * 0.5), ln, font=fe, fill=GOLD_HI, anchor="mm")
+    for i, ln in enumerate(lines_en):
+        d.text((w // 2, cy + i * fe.size * 1.16 + fe.size * 0.58), ln, font=fe,
+               fill=GOLD_HI, anchor="mm")
     cy += h_en + gap
-    for ln in lines_ur:
-        d.text((w // 2, cy + h_ur * 0.5), ln, font=fu, fill=GOLD, anchor="mm", **RTL)
-    return int(plate[3])
+    for i, ln in enumerate(lines_ur):
+        d.text((w // 2, cy + i * fu.size * 2.6 + fu.size * 1.3), ln, font=fu,
+               fill=GOLD, anchor="mm", **RTL)
+    return int(plate[3]), common
 
 
 def _draw_reference(d: ImageDraw.ImageDraw, comp: Comp, w: int, h: int) -> None:
@@ -428,7 +507,7 @@ def build_bases(comp: Comp) -> tuple[Image.Image, Image.Image, dict, Image.Image
 
     top_y = int(h * 0.062)
     probe = ImageDraw.Draw(bg, "RGBA")
-    header_bottom = _draw_topic(probe, comp, w, top_y)
+    header_bottom, heading_size = _draw_topic(probe, comp, w, top_y)
     _draw_reference(probe, comp, w, h)
 
     body_top = header_bottom + int(h * 0.045)
@@ -438,7 +517,8 @@ def build_bases(comp: Comp) -> tuple[Image.Image, Image.Image, dict, Image.Image
     body_h = body_bottom - body_top
     _body_scrim(bg, body_top, body_bottom, pad)
 
-    meta: dict = {}
+    meta: dict = {"ar_stroke": max(int(w * AR_STROKE), 1),
+                 "heading_size": heading_size}
 
     # ---- phase 1 base -----------------------------------------------------
     # Two modes, one renderer:
@@ -473,8 +553,10 @@ def build_bases(comp: Comp) -> tuple[Image.Image, Image.Image, dict, Image.Image
                 placed.append([wpair, xr, y, ww])
                 xr -= ww + gap
             y += lh
+        astroke = meta["ar_stroke"]
         for wpair, xr, wy, _ in placed:
             dl.text((xr, wy), wpair["text"], font=fa, fill=(*AR_DIM, 255),
+                    stroke_width=astroke, stroke_fill=(*AR_DIM, 255),
                     anchor="ra", **RTL)
         meta["arabic_size"] = size
         meta["row_count"] = len(rows)
@@ -491,8 +573,10 @@ def build_bases(comp: Comp) -> tuple[Image.Image, Image.Image, dict, Image.Image
         fa, lines = fit_lines(comp.body_arabic, ARABIC, w - wide, 30, body_h, 1.40,
                               hi=int(w * 0.085))
         lh = int(fa.size * 1.42)
+        astroke = meta["ar_stroke"]
         for i, ln in enumerate(lines):
-            dl.text((w // 2, i * lh), ln, font=fa, fill=IVORY, anchor="ma", **RTL)
+            dl.text((w // 2, i * lh), ln, font=fa, fill=IVORY, anchor="ma",
+                    stroke_width=astroke, stroke_fill=IVORY, **RTL)
         meta["arabic_size"] = fa.size
         meta["row_count"] = len(lines)
 
@@ -528,24 +612,42 @@ def build_bases(comp: Comp) -> tuple[Image.Image, Image.Image, dict, Image.Image
     layer2 = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d2 = ImageDraw.Draw(layer2)
     y = 0
+    # The two translations share the body as EQUAL HALVES, Urdu over English,
+    # each block centred inside its own half. Previously the English was capped
+    # at 30% of the body while the Urdu took 86%, so the English came out small
+    # and low and the layout looked top-heavy. Zoning it fixes both at once: a
+    # long English simply wraps into the room it has, instead of shrinking.
+    rule = int(h * 0.020)          # the gold rule between the halves
+    half_h = (body_h - rule) // 2
+    top_half = body_top
+    bot_half = body_top + half_h + rule
+
+    def _block(text: str, path: Path, zone_top: int, zone_h: int, lh: float,
+               lo: int, max_lines: int, fill, anchor: str) -> int:
+        if not text:
+            return 0
+        fnt, lines = fit_lines(text, path, inner, max_lines, int(zone_h * 0.94),
+                               lh, hi=int(w * 0.052), lo=lo)
+        block = int(len(lines) * fnt.size * lh)
+        cy = zone_top + (zone_h - block) // 2        # centred in its own half
+        for ln in lines:
+            if anchor == "mm":
+                d2.text((w // 2, cy + fnt.size * 0.5), ln, font=fnt, fill=fill,
+                        anchor="mm", **RTL)
+            else:
+                d2.text((w // 2, cy), ln, font=fnt, fill=fill, anchor="ma")
+            cy += int(fnt.size * lh)
+        return fnt.size
+
     if comp.urdu:
-        fu, lines = fit_lines(comp.urdu, URDU, inner, 10, int(body_h * 0.86), 2.42,
-                              hi=int(w * 0.058))
-        for ln in lines:
-            d2.text((w // 2, y + fu.size * 0.5), ln, font=fu, fill=IVORY,
-                    anchor="mm", **RTL)
-            y += int(fu.size * 2.42)
-        meta["urdu_size"] = fu.size
+        meta["urdu_size"] = _block(comp.urdu, URDU, top_half, half_h, 2.42,
+                                   lo=22, max_lines=8, fill=IVORY, anchor="mm")
     if comp.english:
-        y += int(h * 0.012)
-        d2.line([(w // 2 - int(w * 0.13), y), (w // 2 + int(w * 0.13), y)],
+        yrule = top_half + half_h + rule // 2
+        d2.line([(w // 2 - int(w * 0.13), yrule), (w // 2 + int(w * 0.13), yrule)],
                 fill=(*GOLD_DIM, 190), width=2)
-        y += int(h * 0.015)
-        fe, lines = fit_lines(comp.english, LATIN, inner, 6, int(body_h * 0.30), 1.5,
-                              hi=int(w * 0.030))
-        for ln in lines:
-            d2.text((w // 2, y), ln, font=fe, fill=MUTED, anchor="ma")
-            y += int(fe.size * 1.5)
+        meta["english_size"] = _block(comp.english, LATIN, bot_half, half_h, 1.5,
+                                      lo=18, max_lines=8, fill=MUTED, anchor="ma")
     bb2 = layer2.getbbox()
     if bb2:
         dy2 = (body_top + body_bottom) // 2 - (bb2[1] + bb2[3]) // 2
@@ -567,6 +669,7 @@ def render(comp: Comp, out_audio: Path, out_path: Path, work: Path | None = None
     work.mkdir(parents=True, exist_ok=True)
     p1, p2, meta, p1_done = build_bases(comp)
     fa = f(ARABIC, meta.get("arabic_size", 90))
+    astroke = meta.get("ar_stroke", 2)
     w, h, fps = comp.width, comp.height, comp.fps
     laid = meta["word_layout"]
 
@@ -637,12 +740,13 @@ def render(comp: Comp, out_audio: Path, out_path: Path, work: Path | None = None
                     if fr >= ends[i]:
                         # already recited: keep it, in full gold
                         dd.text((it[1], it[2]), it[0]["text"], font=fa,
-                                fill=AR_DONE, anchor="ra", **RTL)
+                                fill=AR_DONE, anchor="ra",
+                                stroke_width=astroke, stroke_fill=AR_DONE, **RTL)
                     elif fr >= starts[i]:
                         active = it
                 if active is not None:
                     paint_word(frame, active[1], active[2], active[0]["text"], fa,
-                               GOLD_HI, glow=True)
+                               GOLD_HI, glow=True, stroke=astroke)
             elif fr < n1:
                 mix = (fr - (n1 - cf)) / cf
                 frame = Image.blend(p1_done, p2, mix)
