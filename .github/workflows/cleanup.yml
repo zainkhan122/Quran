@@ -1,0 +1,79 @@
+name: cleanup
+
+# Weekly housekeeping, so the repo does not creep toward its storage limit.
+#
+# What it does, and what it deliberately does not:
+#   * deletes OLDER GitHub Release assets. The published set in web/video/ is
+#     committed and is what the site links to, so a Release asset is a duplicate
+#     copy - losing one costs nothing that is not in git.
+#   * reports the repo size and the largest tracked files, so growth is visible
+#     before it is a problem.
+#   * NEVER deletes a release whose tag is referenced by any document in the
+#     repo (tools/cleanup.py refuses), because a doc that points at a pruned
+#     release is a broken citation.
+#
+# Caveat worth knowing: GitHub disables scheduled workflows on a repository
+# after 60 days without activity. This one is housekeeping, so if it stops the
+# cost is slow growth rather than a broken build - but run it by hand with
+# `gh workflow run cleanup` if a few months have passed.
+
+on:
+  schedule:
+    - cron: "0 4 * * 0"        # Sundays, 04:00 UTC
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: "How many recent releases to keep"
+        default: "4"
+        required: false
+      dry_run:
+        description: "Report only, delete nothing"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write              # required to delete release assets
+  actions: read
+
+jobs:
+  cleanup:
+    name: prune releases and report size
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Report before
+        run: python3 tools/cleanup.py
+
+      - name: Prune old release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tools/cleanup.py --prune-releases \
+            --keep "${{ inputs.keep || '4' }}" \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }}
+
+      - name: Report after
+        run: python3 tools/cleanup.py
+
+      - name: Verify the published set is intact
+        # The one thing this job must never break: every clip the manifest
+        # advertises must still exist, with its provenance, in the repo.
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, sys
+          root = pathlib.Path(".")
+          man = json.loads((root / "web/video/manifest.json").read_text())
+          missing = []
+          for item in man.get("items", []):
+              slug = item.get("slug") or item.get("file", "").replace(".mp4", "")
+              for suffix in (".mp4", ".build.json"):
+                  if not (root / "web/video" / f"{slug}{suffix}").exists():
+                      missing.append(f"{slug}{suffix}")
+          n = len(man.get("items", []))
+          if missing:
+              print(f"BROKEN: manifest advertises {n} clip(s) but these are gone: {missing}")
+              sys.exit(1)
+          print(f"intact: {n} clip(s), each with its build record")
+          PY

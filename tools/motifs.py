@@ -72,6 +72,20 @@ SUBJECTS: dict[str, str] = {
                  "the qalam pen: a stylised geometric reed pen diagonally crossing a "
                  "multi-pointed Islamic star, with an open geometric page form and "
                  "symmetric islimi scrollwork radiating from the centre.",
+    "justice": "A single flat 2D vector ornament for the concept of the wronged "
+               "being heard: a single narrow beam of light descending from the top "
+               "centre onto a small eight-pointed Islamic star held inside a pair "
+               "of cupped geometric arc forms opening upward, geometric ripples "
+               "radiating outward from the star like an announcement travelling "
+               "outward, symmetric islimi scrollwork at the sides. Abstract "
+               "geometry only, no scales, no figure, no face.",
+    "fairness": "A single flat 2D vector ornament for the concept of upright fair "
+                "dealing: a perfectly vertical plumb line dropping from an "
+                "eight-pointed Islamic star at the top down to a level horizontal "
+                "geometric crossbar, forming a true balance, with two identical "
+                "geometric rosettes of exactly equal size at the two ends of the "
+                "crossbar and symmetrical islimi scrollwork growing outward from "
+                "the centre. Perfect symmetry and exact parity are the whole idea.",
     "prayer": "A single flat 2D vector ornament for the concept of supplication and "
               "du'a: two open cupped geometric hands drawn as abstract symmetric "
               "crescent shapes rising from a stylised mihrab arch, with a thin "

@@ -17,7 +17,7 @@ sessions (installed packages, `/tmp` and every process are lost; only files unde
 3. **Keep the transcript small.** State lives in the repo, not the conversation
    (see *Evidence rules*). Retrieve with a script instead of reading whole files.
 4. **Run the suite before committing.** `python3 -m unittest discover -s tests`
-   — 91 tests, ~15 s, no dependencies, no network. The gates protect publication,
+   — 104 tests, ~12 s, no dependencies, no network. The gates protect publication,
    so a change to them must be proven, not assumed.
 5. **End the session with:** workspace clean, `PHASES.md` status + phase log
    updated, `STATE.md` refreshed, everything committed and pushed.
@@ -35,6 +35,7 @@ sessions (installed packages, `/tmp` and every process are lost; only files unde
 | 3 | **QA gates.** Machine checks that must pass before a video reaches `web/video/` | `tools/check_video.py` (file + correctness gates), wired into `tools/publish.py`, with `tests/` | ✅ 2026-10-11 |
 | 4 | **Voice, relevance, cadence.** Replace the CC-BY-NC voice; make the reviewed topic/ayah mismatch a machine check; measure what a 3-5/day library needs | `islamic/voice.py`, `islamic/urdu.py`, `islamic/relevance.py`, `tools/check_relevance.py`, `RESEARCH.md` | ✅ 2026-10-11 |
 | 4a | **Flow, and English.** The robotic pauses traced to our own per-line synthesis + flat glue; read the passage in one pass. Add an English voice path and a delivery-measurement instrument | `islamic/voice.py` `say_flow`, `islamic/english.py`, `tools/voice_metrics.py`, `--narrate` | ✅ 2026-10-11 |
+| 4b | **Design + robustness.** Ayah weight, stronger reading scrim, equal heading sizes, translation split into equal halves; art for all 10 topics; `tools/resume.sh`, `tools/cleanup.py` + weekly workflow, `RESUME.md` | `islamic/studio.py`, `tools/resume.sh`, `tools/cleanup.py`, `RESUME.md`, `tests/test_design.py` | ✅ 2026-10-11 |
 | 5 | **Coverage.** `parents` motif (8th of 8), grow `library.json` from the 34 validated refs, add `--daily N` rotation, render the whole library | clips for every topic | |
 | 5b | optional: regenerate `assets/motifs/` procedurally from the prompts in `tools/motifs.py`. The earlier geometric generator was retired in Phase 0 as unused duplication — the committed PNG set is the source of truth, so regeneration needs a spec first | | |
 | 6 | **Publishing.** Site polish; optional scheduled render + release; a receipt journal so nothing is ever re-uploaded | | |
@@ -151,6 +152,42 @@ The correctness rules are the product; this is the production half of them.
 * **Verify by re-running the file**, not by reading the diff.
 
 ## Phase log
+
+* **Phase 4b ✅ (2026-10-11)** — The four design corrections, and the robustness the
+  project had been missing.
+  * *Arabic ayah bold*: simulated with a symmetric outline stroke rather than a
+    font swap, because the ayah is set in Amiri and Amiri has no bold — swapping
+    would change the typeface, which is a bigger change than was asked for.
+    Scales with frame width so it does not vanish at 1080 or smear at 4K.
+  * *Reading scrim*: the bed behind the body text went from 88/255 to 132/255.
+    At 88 the topical art was still competing with the Arabic on a busy frame.
+  * *Equal heading sizes*: English and Urdu used to carry different caps (0.053
+    and 0.070), which is why the English came out visibly smaller. Both are now
+    fitted, then re-set at the smaller result. The first attempt allowed two
+    lines by default and orphaned "رحمت" onto a line of its own — worse than the
+    size it bought — so single-line wins unless it would fall below a floor, and
+    the two-line fallback wraps by *balance* rather than greedily.
+  * *Translation halves*: the body is zoned into two equal halves, Urdu over
+    English, each block centred in its own half with the gold rule between.
+    English used to be capped at 30% of the body while Urdu took 86%, which is
+    why it looked small and low. A long English now wraps into its own half
+    instead of shrinking.
+  * *A background per topic*: `justice` and `fairness` had none and `parents`
+    had a prompt but no art. All ten topics now have their own motif, and there
+    is a test that fails if any topic would fall back to the generic layer or if
+    a topic has no art prompt written for it.
+  * *Resume*: `RESUME.md` is the written contract and `tools/resume.sh` is the
+    command. It restores `.git/config`, reports whether a commit was lost,
+    measures both budgets, checks the token, verifies the toolchain, runs the
+    suite, and prints the next steps out of STATE.md.
+  * *Budgets*: `tools/cleanup.py` reports the workspace against its 128 MB
+    snapshot limit and the repo against its own, prunes git-ignored scratch, and
+    prunes older Release assets while refusing to touch a tag any document
+    references. `cleanup.yml` runs it weekly and then re-verifies that every
+    clip the manifest advertises still exists — the one thing housekeeping must
+    never break.
+  * 104 tests. `tests/test_design.py` pins all four layout corrections, so the
+    next person to touch the renderer cannot quietly undo them.
 
 * **Phase 4a ✅ (2026-10-11)** — The robotic pauses, and English.
   * The complaint was right and the reference repo had already measured it:
