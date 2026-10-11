@@ -33,9 +33,11 @@ def narrate(text: str, out_path: Path, engine: str = "fasih",
     sys.path.insert(0, str(root))
     from naat.tts import NaatTTS, split_breath_groups
 
-    from .voice import VOICES, UrduVoice
+    from .voice import VOICES, make_voice
 
-    tts = UrduVoice(engine) if engine in VOICES else NaatTTS(engine)
+    # `make_voice` picks the backend the catalogue key names - Piper or Kokoro -
+    # so this file does not grow an engine branch every time one is added.
+    tts = make_voice(engine) if engine in VOICES else NaatTTS(engine)
 
     # Everything the engine is asked to say goes through a normaliser first, but
     # WHICH normaliser depends on the language: the Urdu one strips Latin script

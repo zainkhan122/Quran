@@ -48,6 +48,7 @@ bad = 0
 for mod, label, required in (("PIL", "pillow", 1), ("numpy", "numpy", 1),
                              ("scipy", "scipy", 1), ("soundfile", "soundfile", 1),
                              ("piper", "piper-tts (Urdu voice, MIT, default)", 1),
+                             ("kokoro_onnx", "kokoro-onnx (English narration, Apache-2.0)", 1),
                              ("torch", "torch (MMS fallback voice)", 0),
                              ("transformers", "transformers (MMS fallback)", 0)):
     try:
@@ -123,6 +124,9 @@ if [[ $CHECK_ONLY == 0 ]]; then
   # piper-tts is the Urdu voice. It is small and pure-CPU, so it is required
   # rather than optional: it is now the default narration engine.
   pipi "pillow>=10" numpy scipy soundfile psutil requests piper-tts
+  # kokoro-onnx carries the English narration voice. It brings onnxruntime and
+  # a bundled espeak-ng, so there is no system espeak to install.
+  pipi kokoro-onnx
 fi
 
 # Fetch the voice weights once (63 MB, MIT). Cached in ~/.cache/urdu-voice,
@@ -135,6 +139,19 @@ from islamic.voice import fetch, DEFAULT_VOICE
 onnx, cfg = fetch(DEFAULT_VOICE)
 print(f'   voice  {onnx.name} ({onnx.stat().st_size // 1024 // 1024} MB)')
 " || echo "   note  Urdu voice not fetched; narration will fail"
+fi
+
+# The English narration model: Kokoro-82M, 353 MB, Apache-2.0, and now the
+# voice of the channel (see islamic/kokoro.py). Cached in ~/.cache/kokoro.
+# This one really is required for a render - the English narration is the
+# default path - so a failure here is reported as such rather than as a note.
+if [[ $CHECK_ONLY == 0 ]]; then
+  python3 -c "
+import sys; sys.path.insert(0, '.')
+from islamic.kokoro import fetch, MODEL_FILE
+model, voices = fetch()
+print(f'   kokoro {model.name} ({model.stat().st_size // 1024 // 1024} MB) + voices')
+" || echo "   note  Kokoro not fetched; English narration will fail"
 fi
 
 # TTS is only needed for the Urdu narration half of a video. It is a large

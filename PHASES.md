@@ -37,10 +37,54 @@ sessions (installed packages, `/tmp` and every process are lost; only files unde
 | 4a | **Flow, and English.** The robotic pauses traced to our own per-line synthesis + flat glue; read the passage in one pass. Add an English voice path and a delivery-measurement instrument | `islamic/voice.py` `say_flow`, `islamic/english.py`, `tools/voice_metrics.py`, `--narrate` | ✅ 2026-10-11 |
 | 4b | **Design + robustness.** Ayah weight, stronger reading scrim, equal heading sizes, translation split into equal halves; art for all 10 topics; `tools/resume.sh`, `tools/cleanup.py` + weekly workflow, `RESUME.md` | `islamic/studio.py`, `tools/resume.sh`, `tools/cleanup.py`, `RESUME.md`, `tests/test_design.py` | ✅ 2026-10-11 |
 | 4c | **Compact header + the voice speaks English.** Owner: *"heading is taking almost 40% of space... it needs to be compact so that main content takes main space"* and *"TTS will be in English, not in Urdu. Translation will be in Urdu and English both while TTS will read English."* Header given a hard budget (measured 28.4% -> 12.8% worst case, body 47.7% -> 67.1%), type now placed by measured ink instead of a nominal line box, `--narrate` defaults to English with the CC-BY-4.0 voice, both translations always captioned, and a .notdef scan so the card cannot draw a missing glyph | `islamic/studio.py` (`_fit_topic`, `HEADER_BUDGET`), `islamic/english.py` (`for_display`), `islamic/produce.py`, `islamic/voice.py`, `tools/layout_report.py`, `tests/test_design.py`, `tests/test_voice.py` | ✅ 2026-10-11 |
+| 4d | **The English voice, by audition.** Owner: *"TTS is very bad for English. use male sound... Get from Free High quality ones and get voice approval from me."* Found the shipped English voice measures **248 Hz** - the female range - despite being catalogued male. Bought in Kokoro-82M (Apache-2.0), measured six male candidates with a validated pitch instrument, built the audition pack, and wired in the approved one (Michael, 117 Hz) behind a two-backend voice factory | `islamic/kokoro.py`, `islamic/voice.py` `make_voice`, `tools/voice_audition.py`, `docs/samples/voice-audition-en.mp3`, `setup.sh`, `render.yml` | ✅ 2026-10-11 |
 | 5 | **Coverage.** `parents` motif (8th of 8), grow `library.json` from the 34 validated refs, add `--daily N` rotation, render the whole library | clips for every topic | |
 | 5b | optional: regenerate `assets/motifs/` procedurally from the prompts in `tools/motifs.py`. The earlier geometric generator was retired in Phase 0 as unused duplication — the committed PNG set is the source of truth, so regeneration needs a spec first | | |
 | 6 | **Publishing.** Site polish; optional scheduled render + release; a receipt journal so nothing is ever re-uploaded | | |
 | 7 | optional: long-form cuts, landscape variants, an analytics loop (views → topic picks) | | |
+
+### Phase 4d outcome — the voice the owner approved
+
+*"TTS is very bad for English. use male sound. Which TTS engine you are using???
+Get from Free High quality ones and get voice approval from me."*
+
+**The engine was Piper** (`rhasspy/piper`, a 2023 VITS model) reading
+`en_US-libritts_r-medium` speaker 60. That spec was catalogued male. Measured:
+**248-250 Hz**, the female range. So the complaint was not a matter of taste,
+and it was our catalogue that was wrong - the same class of error as the
+third-party listing that once mislabelled Fasih's licence.
+
+The first pitch measurement was wrong too, and it is worth recording how: an
+autocorrelation estimator said 256 Hz for a sample a harmonic-product estimator
+called 72 Hz. Two octaves apart, so it was thrown away and replaced with an
+instrument validated against synthetic tones of known pitch
+(`tools/voice_audition.py --check-pitch`, five tones, accurate to ~1 Hz).
+
+**Candidates from Kokoro-82M** - the current generation of small open TTS, and
+Apache-2.0 for the model *and* the voicepack:
+
+    engine / voice        licence     download  size    RTF   F0
+    piper libritts_r      CC-BY-4.0     63 MB   63 MB  0.15  248 Hz  rejected
+    kokoro am_michael     Apache-2.0   353 MB  353 MB  0.86  117 Hz  APPROVED
+    kokoro am_onyx        Apache-2.0   353 MB  353 MB  0.86   88 Hz
+    kokoro am_fenrir      Apache-2.0   353 MB  353 MB  0.86  141 Hz
+    kokoro bm_george      Apache-2.0   353 MB  353 MB  0.86  132 Hz
+    kokoro bm_lewis       Apache-2.0   353 MB  353 MB  0.86   91 Hz
+
+RTF 0.86 is five times slower than Piper and still far inside budget, because
+narration already runs in a child process: the 353 MB graph is loaded, used and
+dropped before ffmpeg starts. `docs/samples/voice-audition-en.mp3` (91 s) plays
+the real 30:21 translation through all six, each announcing itself.
+
+**The owner picked #2, Michael.** It is `DEFAULT_EN_VOICE`; all three clips were
+re-rendered and now measure **113 Hz** on the narration alone. The other four
+stay reachable by flag. Two backends now sit behind one key space
+(`make_voice`), `setup.sh` installs and fetches both, and the workflow caches
+`~/.cache/kokoro` (353 MB) beside `~/.cache/urdu-voice`.
+
+The catalogue now carries `measured_f0_hz` for every voice it can, and a test
+fails if a voice's declared gender contradicts its measured pitch - so this
+particular mislabelling cannot happen twice.
 
 ### Phase 4c outcome — the header is a label again, and the voice is English
 

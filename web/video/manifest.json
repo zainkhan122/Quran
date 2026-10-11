@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-11T08:57:34+00:00",
+  "generated_at": "2026-10-11T10:05:09+00:00",
   "count": 3,
   "note": "Every quote is fetched verbatim from api.quran.com / api.alquran.cloud and the fawazahmed0 hadith-api and shown with its citation. Quranic Arabic is real recitation, never synthesised speech.",
   "items": [
@@ -18,11 +18,11 @@
       "arabic": "حَدَّثَنَا هِشَامُ بْنُ عَمَّارٍ، حَدَّثَنَا حَفْصُ بْنُ سُلَيْمَانَ، حَدَّثَنَا كَثِيرُ بْنُ شِنْظِيرٍ، عَنْ مُحَمَّدِ بْنِ سِيرِينَ، عَنْ أَنَسِ بْنِ مَالِكٍ، قَالَ قَالَ رَسُولُ اللَّهِ ـ صلى الله عليه وسلم ـ ‏ \"‏ طَلَبُ الْعِلْمِ فَرِيضَةٌ عَلَى كُلِّ مُسْلِمٍ وَوَاضِعُ الْعِلْمِ عِنْدَ غَيْرِ أَهْلِهِ كَمُقَلِّدِ الْخَنَازِيرِ الْجَوْهَرَ وَاللُّؤْلُؤَ وَالذَّهَبَ ‏\"‏ ‏.‏",
       "urdu": "انس بن مالک رضی اللہ عنہ کہتے ہیں کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: علم دین حاصل کرنا ہر مسلمان پر فرض ہے، اور نااہلوں و ناقدروں کو علم سکھانے والا سور کے گلے میں جواہر، موتی اور سونے کا ہار پہنانے والے کی طرح ہے ۱؎۔",
       "english": "It was narrated from Anas bin Malik that the Messenger of Allah (ﷺ) said:\"Seeking knowledge is a duty upon every Muslim, and he who imparts knowledge to those who do not deserve it, is like one who puts a necklace of jewels, pearls and gold around the neck of swines",
-      "built_at": "2026-10-11T08:57:09",
+      "built_at": "2026-10-11T10:04:50",
       "width": 1080,
       "height": 1920,
-      "seconds": 44.97,
-      "size_mb": 4.22
+      "seconds": 44.37,
+      "size_mb": 4.3
     },
     {
       "file": "quran-30-21.mp4",
@@ -39,11 +39,11 @@
       "arabic": "وَمِنْ ءَايَٰتِهِۦٓ أَنْ خَلَقَ لَكُم مِّنْ أَنفُسِكُمْ أَزْوَٰجًۭا لِّتَسْكُنُوٓا۟ إِلَيْهَا وَجَعَلَ بَيْنَكُم مَّوَدَّةًۭ وَرَحْمَةً ۚ إِنَّ فِى ذَٰلِكَ لَءَايَٰتٍۢ لِّقَوْمٍۢ يَتَفَكَّرُونَ",
       "urdu": "اور اسی کے نشانات (اور تصرفات) میں سے ہے کہ اُس نے تمہارے لئے تمہاری ہی جنس کی عورتیں پیدا کیں تاکہ اُن کی طرف (مائل ہوکر) آرام حاصل کرو اور تم میں محبت اور مہربانی پیدا کر دی جو لوگ غور کرتے ہیں اُن کے لئے ان باتوں میں (بہت سی) نشانیاں ہیں",
       "english": "And of His signs is that He created for you from yourselves mates that you may find tranquillity in them; and He placed between you affection and mercy. Indeed in that are signs for a people who give thought.",
-      "built_at": "2026-10-11T08:53:55",
+      "built_at": "2026-10-11T10:03:52",
       "width": 1080,
       "height": 1920,
       "seconds": 52.57,
-      "size_mb": 5.79
+      "size_mb": 5.81
     },
     {
       "file": "quran-81-8.mp4",
@@ -60,11 +60,11 @@
       "arabic": "وَإِذَا ٱلْمَوْءُۥدَةُ سُئِلَتْ",
       "urdu": "اور جب لڑکی سے جو زندہ دفنا دی گئی ہو پوچھا جائے گا",
       "english": "And when the girl [who was] buried alive is asked",
-      "built_at": "2026-10-11T08:52:50",
+      "built_at": "2026-10-11T10:02:36",
       "width": 1080,
       "height": 1920,
       "seconds": 11.2,
-      "size_mb": 1.21
+      "size_mb": 1.2
     }
   ]
 }

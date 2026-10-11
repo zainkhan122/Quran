@@ -138,13 +138,19 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--narrate", default="english", choices=["english", "urdu"],
                     help="which language the VOICE speaks. The card shows both "
                          "either way; this only picks what is read aloud.")
+    # Listed from the catalogue so a new voice cannot be added and then be
+    # unreachable from the CLI. The VITS engines (mms, mms-ft, gtts) are not in
+    # VOICES, so they are appended by hand.
+    from .voice import VOICES
     ap.add_argument("--engine", default=None,
-                    choices=["fasih", "aegis", "en", "en_free",
-                             "mms", "mms-ft", "gtts"],
-                    help="fasih/aegis = Piper Urdu (MIT), en = Piper English "
-                         "(test only), en_free = LibriTTS-R English (CC-BY-4.0), "
-                         "mms = the old CC-BY-NC voice. Default follows "
-                         "--narrate.")
+                    choices=[*VOICES, "mms", "mms-ft", "gtts"],
+                    help="en_michael = Kokoro English (Apache-2.0, the approved "
+                         "narration voice); en_onyx/en_george/en_lewis = the "
+                         "other approved candidates; en_free = the LibriTTS-R "
+                         "voice this replaced, which measures 248 Hz and is "
+                         "female despite the name; fasih/aegis = Piper Urdu "
+                         "(MIT); en = lessac (research licence, A/B only). "
+                         "Default follows --narrate.")
     ap.add_argument("--no-textures", action="store_true")
     ap.add_argument("--landscape", action="store_true")
     # The card carries BOTH translations and the voice reads the English - the

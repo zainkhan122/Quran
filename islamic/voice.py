@@ -78,16 +78,62 @@ VOICES: dict[str, dict] = {
            "length_scale": 1.4},
     # LibriTTS-R: 904 speakers, CC BY 4.0, clear for commercial use. Speaker 60
     # is a low male id chosen from the model's own speaker map.
+    # CORRECTED. This was catalogued male and shipped as the English default.
+    # It measures 248-250 Hz, which is the female range, and that is what the
+    # owner heard when they said the English TTS was "very bad". The catalogue
+    # was wrong, not their ear. It stays for the A/B and must never be a
+    # default again - `tests/test_voice.py` now checks declared gender against
+    # the measured pitch so this cannot be mislabelled twice.
     "en_free": {"rel": "en/en_US/libritts_r/medium/en_US-libritts_r-medium",
-                "lang": "en", "gender": "male", "licence": "CC-BY-4.0",
-                "speaker": 60, "length_scale": 1.60},
+                "lang": "en", "gender": "female", "licence": "CC-BY-4.0",
+                "speaker": 60, "length_scale": 1.60, "measured_f0_hz": 248},
+    # -- Kokoro-82M: the English narration voices ---------------------------
+    # Apache-2.0 for the model AND the voicepack. 353 MB, RTF 0.86 on this box,
+    # and it runs in the narration child process so ffmpeg still gets its RAM.
+    # `speed` is Kokoro's own control; 0.95 measures 177 wpm against the
+    # study's creators' median of 184.5 - already the right pace, so there is
+    # no length_scale to tune. The F0 figures are measured, not quoted from a
+    # model card, and are what the owner chose between.
+    "en_michael": {"engine": "kokoro", "voice_id": "am_michael", "lang": "en",
+                   "gender": "male", "licence": "Apache-2.0", "speed": 0.95,
+                   "measured_f0_hz": 117},
+    "en_onyx": {"engine": "kokoro", "voice_id": "am_onyx", "lang": "en",
+                "gender": "male", "licence": "Apache-2.0", "speed": 0.88,
+                "measured_f0_hz": 88},
+    "en_fenrir": {"engine": "kokoro", "voice_id": "am_fenrir", "lang": "en",
+                  "gender": "male", "licence": "Apache-2.0", "speed": 0.95,
+                  "measured_f0_hz": 141},
+    "en_george": {"engine": "kokoro", "voice_id": "bm_george", "lang": "en",
+                  "gender": "male", "licence": "Apache-2.0", "speed": 1.0,
+                  "measured_f0_hz": 132},
+    "en_lewis": {"engine": "kokoro", "voice_id": "bm_lewis", "lang": "en",
+                 "gender": "male", "licence": "Apache-2.0", "speed": 0.95,
+                 "measured_f0_hz": 91},
 }
 DEFAULT_VOICE = "fasih"
-#: libritts_r, not lessac. English is now the default narration language, so the
-#: default English voice has to be one we could publish: CC BY 4.0. Lessac
-#: still sounds better and stays available as `--engine en` for an A/B, but it
-#: is marked test_only and must not become the voice of the channel by default.
-DEFAULT_EN_VOICE = "en_free"
+#: The owner heard the candidates and chose this one (2026-10-11):
+#: "2 - Michael". Kokoro am_michael, Apache-2.0, 117 Hz. Everything before it
+#: was either the wrong speaker (en_free measures 248 Hz - female) or a
+#: research licence (lessac). See `tools/voice_audition.py` for the pack that
+#: was approved and `docs/samples/voice-audition-en.mp3` for the audio.
+DEFAULT_EN_VOICE = "en_michael"
+
+
+def make_voice(key: str, cache: Path | None = None):
+    """Build the engine a catalogue key names.
+
+    Two backends now sit behind one key space: Piper (ONNX, cheap, Urdu) and
+    Kokoro (ONNX, modern, English). Callers ask for a *voice*, not an engine
+    class, so adding the next engine does not touch `narrate.py` or
+    `produce.py`.
+    """
+    if key not in VOICES:
+        raise VoiceError(f"unknown voice {key!r}; have: {', '.join(VOICES)}")
+    spec = VOICES[key]
+    if spec.get("engine") == "kokoro":
+        from .kokoro import KokoroVoice
+        return KokoroVoice(key, spec, cache=cache)
+    return UrduVoice(key, cache=cache)
 
 
 def voices_for(lang: str) -> list[str]:

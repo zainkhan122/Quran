@@ -105,8 +105,12 @@ that persists reliably, so:
   exists only in the workspace;
 * **renders live in the repo** (`web/video/`) so the published site and the
   artefacts it points at are versioned together;
-* **narration is ENGLISH by default** (`--narrate english`, voice `en_free`,
-  CC BY 4.0) and the card always shows both translations. If a clip comes out
-  with no voice, check you have not passed `--narrate urdu`.
+* **narration is ENGLISH by default** (`--narrate english`, voice
+  `en_michael` = Kokoro, Apache-2.0, the voice the owner approved) and the card
+  always shows both translations. If a clip comes out with no voice, check you
+  have not passed `--narrate urdu`.
+* **first run each session fetches 353 MB** of Kokoro weights into
+  `~/.cache/kokoro` (outside the snapshot). `bash setup.sh` does it;
+  `python3 -m islamic.kokoro --check` says whether it is cached.
 * **the workspace holds only: the repo, the token, and the sample files currently
   under review.** Anything else is scratch and gets deleted.

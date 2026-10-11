@@ -34,7 +34,41 @@ class TestVoiceCatalogue(unittest.TestCase):
         for key, spec in VOICES.items():
             self.assertTrue(spec.get("lang"), f"{key} has no language")
             self.assertTrue(spec.get("licence"), f"{key} has no licence")
-            self.assertTrue(spec.get("rel"), f"{key} has no model path")
+            # Two backends now: Piper locates a voice by its path inside
+            # rhasspy/piper-voices, Kokoro by its id inside the voicepack.
+            self.assertTrue(spec.get("rel") or spec.get("voice_id"),
+                            f"{key} has no model path and no voice id")
+
+    def test_a_declared_gender_matches_the_measured_pitch(self):
+        """The defect behind the rejection, as a rule.
+
+        `en_free` was catalogued **male** and shipped as the English default. It
+        measures 248 Hz - the female range - and the owner heard it immediately:
+        "English TTS is very bad. use male sound." The catalogue was wrong, not
+        their ear.
+
+        So: any voice that claims a gender must carry the pitch we measured, and
+        the claim has to survive it. The bands are deliberately wide - this is a
+        tripwire for a gross mislabel, not a phonetic claim.
+        """
+        bands = {"male": (60, 180), "female": (165, 300)}
+        checked = 0
+        for key, spec in VOICES.items():
+            gender = spec.get("gender")
+            f0 = spec.get("measured_f0_hz")
+            if not gender or f0 is None:
+                continue
+            lo, hi = bands[gender]
+            self.assertTrue(lo <= f0 <= hi,
+                            f"{key} is catalogued {gender} but measures {f0} Hz")
+            checked += 1
+        self.assertGreaterEqual(checked, 4,
+                                "no voice carries a measured pitch any more, so "
+                                "this test has stopped protecting anything")
+
+    def test_the_rejected_voice_is_no_longer_called_male(self):
+        self.assertNotEqual(VOICES["en_free"].get("gender"), "male",
+                            "en_free is categorised male again; it is 248 Hz")
 
     def test_urdu_and_english_defaults(self):
         self.assertEqual(default_voice("ur"), "fasih")
@@ -42,16 +76,34 @@ class TestVoiceCatalogue(unittest.TestCase):
         self.assertEqual(VOICES[default_voice("en")]["lang"], "en")
 
     def test_the_default_english_voice_is_one_we_could_publish(self):
-        """English is now the DEFAULT narration language ('TTS will be in
-        English'), so the default voice has to be licence-clean. It was lessac,
-        which is a Blizzard research licence - fine for an A/B, not for the
-        channel. The prettier voice stays available explicitly.
+        """English is the default narration language, so the default voice has
+        to be licence-clean. It has been wrong twice: lessac is a Blizzard
+        research licence, and en_free turned out not to be male.
         """
-        self.assertFalse(VOICES[default_voice("en")].get("test_only", False),
+        spec = VOICES[default_voice("en")]
+        self.assertFalse(spec.get("test_only", False),
                          f"the English default is {default_voice('en')}, which is "
                          f"flagged test_only - a published clip would ship it")
-        self.assertTrue(VOICES["en"]["test_only"],
-                        "lessac should stay available as the A/B voice")
+        self.assertTrue(spec.get("rel") or spec.get("voice_id") and True)
+        self.assertIn("Apache-2.0", spec["licence"],
+                      "the approved default is Kokoro am_michael, Apache-2.0")
+        self.assertEqual(spec.get("gender"), "male",
+                         "the owner asked for a male voice")
+
+    def test_the_approved_voice_is_the_one_that_was_auditioned(self):
+        """The owner picked '2 - Michael' from a numbered pack. This ties the
+        default to the entry in the pack they approved, so a later change to
+        either one fails here rather than shipping a voice nobody heard.
+        """
+        sys.path.insert(0, str(ROOT / "tools"))
+        import voice_audition
+        default = default_voice("en")
+        entry = VOICES[default]
+        matching = [c for c in voice_audition.CANDIDATES
+                    if c[0] == entry.get("engine") and c[1] == entry.get("voice_id")]
+        self.assertEqual(len(matching), 1,
+                         f"the default voice {default} is not in the audition "
+                         f"pack the owner approved")
 
     def test_the_research_licensed_voice_is_marked_test_only(self):
         """It sounds good and its licence is a Blizzard research licence.
@@ -90,9 +142,23 @@ class TestVoiceCatalogue(unittest.TestCase):
         self.assertIn("CC-BY", VOICES["en_free"]["licence"])
 
     def test_english_voices_declare_a_slower_pace(self):
-        """Measured: the model default runs 227-245 wpm; creators median 184.5."""
+        """Measured: the Piper model default runs 227-245 wpm; creators 184.5.
+
+        Each backend has its own control and both must be set. Piper stretches
+        with `length_scale` (>1.2 measured); Kokoro has `speed`, and its
+        published wpm were measured at the value recorded here.
+        """
         for key, spec in VOICES.items():
-            if spec["lang"] == "en":
+            if spec["lang"] != "en":
+                continue
+            if spec.get("engine") == "kokoro":
+                speed = spec.get("speed")
+                self.assertIsNotNone(speed, f"{key} speaks at the model's own pace")
+                self.assertLess(speed, 1.05,
+                                f"{key} at {speed}x will read too fast for narration")
+                self.assertGreater(speed, 0.75,
+                                   f"{key} at {speed}x would drag")
+            else:
                 ls = spec.get("length_scale")
                 self.assertIsNotNone(ls, f"{key} speaks at the model's own pace")
                 self.assertGreater(ls, 1.2, f"{key} is too fast for narration")

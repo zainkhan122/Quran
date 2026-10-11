@@ -94,10 +94,14 @@ python3 -m http.server 8000 --directory web    # the site
 
 The voice reads **English** and the card carries **both** translations - that is
 the default, so a plain `--ref ... --topic ...` gives you the shippable clip.
-`--narrate urdu` and `--no-english` exist but are no longer the path. The
-default English voice is `en_free` (LibriTTS-R, CC BY 4.0) because it is now the
-voice of the channel; `--engine en` is the prettier, research-licensed one and
-is for A/B only.
+`--narrate urdu` and `--no-english` exist but are no longer the path.
+
+The English voice is **Kokoro-82M `am_michael`** (Apache-2.0, 117 Hz), chosen by
+the owner from `docs/samples/voice-audition-en.mp3` - a pack built by
+`tools/voice_audition.py`. Four other male Kokoro voices are catalogued
+(`en_onyx`, `en_fenrir`, `en_george`, `en_lewis`), so changing the voice is one
+flag. `en_free` is kept only for the A/B that established it is **not male**:
+it measures 248 Hz.
 
 `setup.sh` is not optional: this sandbox keeps only files under `/home/user`, so
 ffmpeg, the Python wheels and the fonts all have to be re-asserted each session.
@@ -139,6 +143,7 @@ islamic/
   produce.py    the CLI that ties it together
   narrate.py    narration in a child process (keeps the box free for ffmpeg)
   english.py    English speech/display prep; the font-coverage substitutions
+  kokoro.py     Kokoro-82M: the English narration voice (Apache-2.0)
 tools/
   fetch_fonts.py  download + verify OFL fonts (verify by magic bytes, not name)
   motifs.py       the 2D art registry and its prompts

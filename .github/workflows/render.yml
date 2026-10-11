@@ -84,15 +84,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # pip wheels and the Urdu voice model are the two big downloads. Keyed on
-      # the files that pin them, so an unrelated change does not refetch ~1 GB.
+      # pip wheels and the voice models are the big downloads. Keyed on the
+      # files that pin them, so an unrelated change does not refetch ~1.5 GB.
+      # `kokoro` is the English narration voice (353 MB) and `urdu-voice` the
+      # Urdu one (63 MB); the cache key names both model files so a change to
+      # either invalidates it.
       - uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pip
             ~/.cache/huggingface
             ~/.cache/urdu-voice
-          key: voice-${{ runner.os }}-${{ hashFiles('setup.sh', 'islamic/voice.py', 'naat/tts.py') }}
+            ~/.cache/kokoro
+          key: voice-${{ runner.os }}-${{ hashFiles('setup.sh', 'islamic/voice.py', 'islamic/kokoro.py', 'naat/tts.py') }}
           restore-keys: voice-${{ runner.os }}-
 
       - name: Toolchain

@@ -1,7 +1,7 @@
 {
   "file": "output/video/quran-81-8.mp4",
   "seconds": 11.23,
-  "size_mb": 1.21,
+  "size_mb": 1.2,
   "frames": 336,
   "arabic_size": 108,
   "reference": "quran:81:8",
@@ -13,12 +13,12 @@
   "kind": "quran",
   "narration": {
     "language": "English",
-    "voice": "en_free",
-    "seconds": 3.07
+    "voice": "en_michael",
+    "seconds": 2.69
   },
   "reciter": "Mishary Rashid Alafasy",
   "timings_source": "api.quran.com v4 audio.segments",
-  "built_at": "2026-10-11T08:52:50",
+  "built_at": "2026-10-11T10:02:36",
   "pipeline": "islamic.studio (measured-ink layout, word-level reveal)",
   "arabic": "وَإِذَا ٱلْمَوْءُۥدَةُ سُئِلَتْ",
   "urdu": "اور جب لڑکی سے جو زندہ دفنا دی گئی ہو پوچھا جائے گا",
