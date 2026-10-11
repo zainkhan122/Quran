@@ -33,6 +33,7 @@ from __future__ import annotations
 import json
 import math
 import subprocess
+import time
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -59,7 +60,9 @@ GOLD_HI = (255, 238, 196)
 GOLD_DIM = (150, 122, 72)
 IVORY = (243, 248, 245)
 MUTED = (176, 200, 192)
-AR_DIM = (120, 146, 138)
+AR_DIM = (146, 124, 84)      # not-yet-recited words: warm brass in shadow.
+                              # A cold steel tone read as a rendering fault next to
+                              # the gold, and pulled the eye away from the live word.
 AR_DONE = (206, 178, 116)
 BG_TOP = (8, 22, 19)
 BG_BOT = (14, 42, 35)
@@ -478,9 +481,15 @@ def build_bases(comp: Comp) -> tuple[Image.Image, Image.Image, dict, Image.Image
     elif comp.body_arabic:
         # A hadith arrives whole, isnad included, so the text is long by nature.
         # Give it a wider measure and more lines before shrinking the type.
+        #
+        # The line count must not be the binding constraint: an isnad runs to
+        # several hundred characters, and capping the lines at 22 also capped the
+        # type at 64 px, which left a 600 px block sitting in a 1070 px stage with
+        # the reader squinting at it on a phone. Let the stage HEIGHT be the
+        # constraint and allow as many lines as that needs.
         wide = int(w * 0.055) * 2
-        fa, lines = fit_lines(comp.body_arabic, ARABIC, w - wide, 22, body_h, 1.40,
-                              hi=int(w * 0.060))
+        fa, lines = fit_lines(comp.body_arabic, ARABIC, w - wide, 30, body_h, 1.40,
+                              hi=int(w * 0.085))
         lh = int(fa.size * 1.42)
         for i, ln in enumerate(lines):
             dl.text((w // 2, i * lh), ln, font=fa, fill=IVORY, anchor="ma", **RTL)
@@ -565,19 +574,54 @@ def render(comp: Comp, out_audio: Path, out_path: Path, work: Path | None = None
     n2 = int(comp.phase2 * fps)
     n_total = n1 + n2
     cf = max(int(comp.crossfade * fps), 1)
+    total = comp.total
+
+    # The output duration is stated twice on purpose, and it is NOT `-shortest`.
+    #
+    # The audio tail used to be a bare `apad`, which pads with silence forever.
+    # With `-shortest`, ffmpeg then never saw EOF on the audio side and the encode
+    # hung after the last frame was already written - measured: still running at
+    # 32 s on a 5 s clip, and it silently ate a whole session before that. Bounding
+    # the pad with `whole_dur` plus an explicit `-t` finishes the same clip in 2.6 s.
+    audio_fc = (f"[1:a]aresample=44100,loudnorm=I=-15:TP=-1.5:LRA=11,"
+                f"apad=whole_dur={total:.3f}[a]")
 
     cmd = ["ffmpeg", "-y", "-v", "error",
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}", "-r", str(fps),
            "-i", "-", "-i", str(out_audio),
            "-filter_complex",
-           "[0:v]fps=" + str(fps) + ",format=yuv420p[v];[1:a]aresample=44100,"
-           "loudnorm=I=-15:TP=-1.5:LRA=11,apad[a]",
-           "-map", "[v]", "-map", "[a]", "-shortest",
+           "[0:v]fps=" + str(fps) + ",format=yuv420p[v];" + audio_fc,
+           "-map", "[v]", "-map", "[a]", "-t", f"{total:.3f}",
            "-c:v", "libx264", "-preset", "medium", "-crf", "19",
            "-profile:v", "high", "-level", "4.1", "-pix_fmt", "yuv420p",
            "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2",
            "-movflags", "+faststart", str(out_path)]
-    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+    # stderr goes to a file, not a pipe: a pipe nobody drains can block ffmpeg,
+    # and at -v error there is nothing to stream anyway. Reading it afterwards is
+    # what turns "it hung" into an actual error message.
+    log = work / "render.log"
+    log_fh = open(log, "wb")
+    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=log_fh)
+
+    # A hang must cost a bounded amount of the session, never all of it.
+    deadline = time.time() + max(240.0, total * 15.0 + 120.0)
+
+    def _drain_and_fail(why: str):
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        try:
+            proc.stdin.close()
+        except Exception:
+            pass
+        log_fh.close()
+        tail = ""
+        try:
+            tail = log.read_text("utf-8", "replace").strip()[-900:]
+        except Exception:
+            pass
+        raise RuntimeError(f"{why} (see {log})\n{tail}")
 
     starts = [(comp.lead + it[0]["start"]) * fps for it in laid]
     ends = [(comp.lead + it[0]["end"]) * fps for it in laid]
@@ -605,14 +649,28 @@ def render(comp: Comp, out_audio: Path, out_path: Path, work: Path | None = None
             else:
                 frame = p2.copy() if fr > n1 + cf else Image.blend(
                     p1_done, p2, min((fr - n1) / cf, 1.0))
+            if fr % 30 == 0 and time.time() > deadline:
+                _drain_and_fail(f"render exceeded its time budget at frame "
+                                f"{fr}/{n_total}")
             proc.stdin.write(frame.tobytes())
             if verbose and fr % (fps * 5) == 0:
-                print("  [studio] %5.1fs / %.1fs" % (t, n_total / fps), flush=True)
+                print("  [studio] %5.1fs / %.1fs  %4.0f%%"
+                      % (t, total, 100.0 * fr / max(n_total, 1)), flush=True)
+    except BrokenPipeError:
+        _drain_and_fail("ffmpeg closed the frame pipe early")
     finally:
-        proc.stdin.close()
-        proc.wait()
+        try:
+            proc.stdin.close()
+        except Exception:
+            pass
+    try:
+        proc.wait(timeout=max(180.0, total * 4.0))
+    except subprocess.TimeoutExpired:
+        _drain_and_fail("ffmpeg did not exit after the last frame")
+    log_fh.close()
     if proc.returncode != 0:
-        raise RuntimeError("ffmpeg failed while writing frames")
+        tail = log.read_text("utf-8", "replace").strip()[-900:]
+        raise RuntimeError(f"ffmpeg exited {proc.returncode} (see {log})\n{tail}")
 
     dur = _dur(out_path)
     return {"file": str(out_path), "seconds": round(dur, 2),
