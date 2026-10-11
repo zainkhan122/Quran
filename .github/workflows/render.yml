@@ -180,6 +180,15 @@ jobs:
       - name: Report what arrived
         run: ls -la output/video
 
+      # publish.py re-runs the render gate (ffprobe) and cuts the poster frames
+      # (ffmpeg). The runner image has neither. The first cloud publish held
+      # back every clip for exactly this, which is the gate doing its job.
+      - name: Media tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg >/dev/null
+          ffprobe -version | head -1
+
       - name: Build the site
         # Not --exact: rendering a subset must leave the rest of the library on
         # the site rather than pruning it. --release records, per clip, which

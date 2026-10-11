@@ -115,7 +115,12 @@ def gate(mp4: Path) -> tuple[bool, str]:
     for line in (p.stderr or "").splitlines():
         if line.startswith("FAIL"):
             return False, line.replace("FAIL", "").strip()
-    return False, (p.stderr or p.stdout or "gate failed").strip()[:160]
+    # A crash, not a verdict. Report the LAST line - that is the exception. The
+    # first line of a traceback ("Traceback (most recent call last):") is what
+    # this used to print, and it said nothing about why the first cloud
+    # publish held back every clip.
+    lines = [l for l in (p.stderr or p.stdout or "").strip().splitlines() if l.strip()]
+    return False, ("gate crashed: " + lines[-1].strip()[:200]) if lines else "gate failed"
 
 
 def _file_stamp(p: Path) -> float:
