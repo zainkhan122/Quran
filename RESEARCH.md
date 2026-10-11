@@ -163,6 +163,66 @@ English script it would silently reduce the narration to rubble. `narrate()`
 therefore picks its normaliser from the voice's language, and there is a test
 that fails if the two are ever interchanged.
 
+### Diacritization: the lever is real, and it is not reachable for free
+
+After the pause fix the complaint stood — *"still more robotic"* — so this went
+after the root cause named at the top of this file: Urdu text without short
+vowels. Three things were tested, and the third is the one that matters.
+
+**1. Does restoring the harakat actually change the sound?** Yes, decisively.
+eSpeak's Urdu phonemiser reads the diacritics when they are there. Six of eight
+test words came out with different phonemes:
+
+| word | plain phonemes | with harakat |
+|---|---|---|
+| محبت | `mʊhˈabːat` | `mˌʊhabˈaːt` |
+| عورتیں | `aˈoːrtˌẽː` | `aˈaʊrtˌẽː` |
+| بیٹیاں | `bˈeːʈjãː` | `beːʈˈiːʲãː` |
+| دعا | `dˈʊaː` | `dˈɔaː` |
+
+So the lever exists. The question is whether we can pull it.
+
+**2. Can we write the harakat by hand?** Not safely. Look at محبت: the plain
+reading `mu-hab-bat` is correct, and the hand-diacritized one moves the long
+vowel to the end. عورتیں goes from "or-ten" to "a-aur-ten". Hand-diacritizing a
+corpus would mean hand-diaritizing hundreds of words with no way to check them
+except a native ear — and the two spot checks I could judge both got *worse*.
+**Do not ship a hand-written harakat lexicon.** The mechanism exists
+(`lexicon/urdu_overrides.json`) and should be reserved for words a speaker has
+actually verified.
+
+**3. Is there an off-the-shelf diacritizer?** Piper bundles one — a 4.8 MB ONNX
+port of `libtashkeel`, which is *Arabic*. It is gated on `espeak_voice == "ar"`
+and not wired to Urdu, so it was tried directly. It produces Arabic grammar
+where Urdu has none, and one word settles the whole question:
+
+> `دعا` → `دَعًا` → phonemes `daːˈanaː`
+
+*du'a* — one of the most common words in this entire project — comes out as
+"daa-anaa". The model applied Arabic tanween to an Urdu word. Mixed results
+elsewhere (نکاح and انصاف arguably improved, عورتیں and علم clearly degraded)
+
+make it unusable even before that: a diacritizer that mangles du'a cannot be
+shipped in Islamic content, and it cannot be partially trusted.
+
+A search of Hugging Face for Urdu diacritization, tashkeel, diacritics and
+harakat models returns **nothing**. There is no free, CPU-sized Urdu
+diacritizer to wire in.
+
+**The honest conclusion.** The mechanism that makes Urdu TTS sound robotic is
+under-specification, the fix is diacritization, diacritization changes the audio
+measurably, and **every route to it available to us for free is worse than doing
+nothing**. The remaining gap is the acoustic model. Meta MMS is out on licence
+and quality; Piper Urdu is "medium" quality and was initialised from Hindi; the
+Tacotron-class results in the literature need a GPU; and the reference repo's own
+answer — Chatterbox, MIT, ~6 min of CPU per video in the cloud and explicitly
+not runnable on a 2 GB sandbox — is a `workflow_dispatch` decision, which needs
+the token.
+
+That is the decision to make now, and it is a spend decision rather than a
+technical one: accept Piper's ceiling, or spend free GitHub Actions minutes on
+a heavier engine.
+
 ### What is still out of reach
 
 Real diacritization. Restoring the harakat needs a model, and the CPU-only,

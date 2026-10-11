@@ -12,6 +12,12 @@ fix this file.
 * **Phase 2 is built and rehearsed but not dispatched.** The outstanding step is the
   one that needs GitHub credentials — push, then dispatch the run. See *The one thing
   blocking Phase 2*.
+* **Diacritization is a dead end for free.** Proven that harakat change the
+  phonemes (6 of 8 test words), so the root cause is reachable in principle —
+  but hand-written harakat degraded the words a native ear could check, and
+  Piper's bundled Arabic tashkeel turns `دعا` into "daa-anaa". No Urdu
+  diacritizer exists on Hugging Face. The remaining gap is the acoustic model,
+  which means a heavier engine on Actions or nothing.
 * **The card shows Arabic word-by-word, Urdu, and — with `--english` — the
   English translation; `--narrate english` makes the *voice* English. They are
   separate flags on purpose. Verified: `web`-quality frame at
@@ -30,6 +36,24 @@ fix this file.
   ship it.
 
 ## Read this first, every session
+
+**Two things are not persisted, and both have already cost a session's work.**
+
+1. **`.git` does not reliably survive the snapshot.** Twice now a finished
+   commit has been present at the end of a session and absent afterwards, with
+   the working tree fully intact. `.git/config` goes too. The first time was a
+   plain rollback; the second was a 154 MB snapshot against a 128 MB budget,
+   where 22 files — the new git objects — were dropped.
+   Recovery is `cp setup/git-config.template .git/config` then re-commit;
+   `naat-ai-ahead.bundle` beside the repo restores the local commits in one
+   command if they are ever lost again.
+2. **`~/.cache` is excluded from snapshots by design**, so the Urdu voice
+   weights are re-fetched by `setup.sh` each session (~60 MB, once). The network
+   cache for fetched scripture now lives at `~/.cache/islamic-studio` for the
+   same reason — it used to live in the repo and charged 32 MB against the
+   budget every session.
+
+## Read this first, every session (git check)
 
 **A commit made in a session does not always survive the sandbox reset.** On
 2026-10-11 the Phase 4 commit (`89dec05`) was present at the end of the session
@@ -53,6 +77,7 @@ bash setup.sh --check                          # ~9 s
 python3 -m unittest discover -s tests          # 91 tests, ~15 s, stdlib, offline
 python3 tools/check_relevance.py --audit       # topic vs its own refs (needs network)
 python3 tools/voice_metrics.py FILE.wav        # delivery: pauses, pitch range, wpm
+du -sh /home/user                               # budget: must stay under 128 MB
 python3 tools/plan_render.py --plan --offline  # the plan the workflow would build
 python3 tools/publish.py                       # gates every clip, then writes the site
 ```
