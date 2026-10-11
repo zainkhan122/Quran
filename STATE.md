@@ -4,27 +4,23 @@ Resume capsule. One screen. **A new session starts by reading `RESUME.md`** and
 running `bash tools/resume.sh`; this file is what that script reports from.
 If this file and the repo disagree, the repo wins — fix this file.
 
-## ⚠ One commit is local-only (2026-10-11)
+## ⚠ Local-only: waiting on the token (2026-10-11)
 
-**Local tip is `73f3194`. The remote is at `7134eeb`.** Three commits are
-unpushed — the approved voice (`e60f5a0`, all three clips re-rendered), the
-token note, and the 39.1 MB history squeeze (`73f3194`). The rewrite moved every
-local sha, so this **needs `--force-with-lease`**, not a plain push. The sandbox rolled back mid-session and took `/tmp/.ght` with it
-(by design: the token never lives inside `/home/user`, so a snapshot can never
-leak it). `.git/config` went too; it was restored from
-`setup/git-config.template`.
-
-To finish the push, paste the token again and:
+Local `main` is ahead of GitHub and **its history was rewritten** (every media
+blob purged, `.git` 47 -> 18 MB), so the push is `--force-with-lease`. The
+staged media for the first release is in `output/release/` (git-ignored, 12.5
+MB). Delete it once uploaded. With the token in `/tmp/.ght`:
 
 ```bash
-printf '%s' '<token>' > /tmp/.ght && chmod 600 /tmp/.ght
-cd /home/user/naat-ai && TOK=$(cat /tmp/.ght) \
-  && git remote set-url origin "https://x-access-token:${TOK}@github.com/zainkhan122/Quran.git" \
-  && git push --force-with-lease origin main \
-  && git remote set-url origin "https://github.com/zainkhan122/Quran.git"
+cd /home/user/naat-ai
+tools/cloud.sh upload renders-2026-10-11 output/release/{quran-81-8,quran-30-21,tirmidhi-2646}.{mp4,jpg}
+tools/cloud.sh upload voice-approval output/release/voice-audition-en.mp3
+TOK=$(cat /tmp/.ght); git push --force "https://x-access-token:${TOK}@github.com/zainkhan122/Quran.git" main
+tools/cloud.sh pages-enable
+tools/cloud.sh render && tools/cloud.sh wait     # first real cloud render
+python3 tools/fetch_media.py --check             # every asset is where the manifest says
+rm -rf output/release
 ```
-
-Everything else in this file is already true of `6c5eadf`.
 
 ## Where things stand
 
