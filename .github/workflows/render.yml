@@ -91,7 +91,8 @@ jobs:
           path: |
             ~/.cache/pip
             ~/.cache/huggingface
-          key: voice-${{ runner.os }}-${{ hashFiles('setup.sh', 'naat/tts.py') }}
+            ~/.cache/urdu-voice
+          key: voice-${{ runner.os }}-${{ hashFiles('setup.sh', 'islamic/voice.py', 'naat/tts.py') }}
           restore-keys: voice-${{ runner.os }}-
 
       - name: Toolchain
@@ -111,6 +112,13 @@ jobs:
             --build-json "output/video/${{ matrix.clip.slug }}.build.json" \
             --min-seconds 6 \
             ${{ matrix.clip.require_audio && '--require-audio' || '' }}
+
+      # Defence in depth. The plan job already refuses a mismatch, but a
+      # single-clip dispatch (--only) can reach a runner without going through
+      # it. This re-checks the topic against the body that was just rendered,
+      # read back off disk, so the check is on the artefact and not the plan.
+      - name: Gate the topic
+        run: python3 tools/check_relevance.py --clip "${{ matrix.clip.slug }}" --offline
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

@@ -23,7 +23,13 @@ bad() { printf '   MISS  %s\n' "$*"; }
 FAILED=0
 
 CHECK_ONLY=0
-[[ "${1:-}" == "--check" ]] && CHECK_ONLY=1
+WITH_MMS=0          # the CC-BY-NC fallback voice is opt-in; Piper (MIT) is default
+for arg in "$@"; do
+  case "$arg" in
+    --check)    CHECK_ONLY=1 ;;
+    --with-mms) WITH_MMS=1 ;;
+  esac
+done
 
 # --check is the session-start command. It verifies the toolchain, the shaping
 # library, the fonts and the ornament in a few seconds and exits non-zero if
@@ -41,8 +47,9 @@ from PIL import features
 bad = 0
 for mod, label, required in (("PIL", "pillow", 1), ("numpy", "numpy", 1),
                              ("scipy", "scipy", 1), ("soundfile", "soundfile", 1),
-                             ("torch", "torch (Urdu voice)", 0),
-                             ("transformers", "transformers (Urdu voice)", 0)):
+                             ("piper", "piper-tts (Urdu voice, MIT, default)", 1),
+                             ("torch", "torch (MMS fallback voice)", 0),
+                             ("transformers", "transformers (MMS fallback)", 0)):
     try:
         importlib.import_module(mod); print(f"   ok    {label}")
     except Exception:
@@ -113,24 +120,47 @@ pipi() {
 }
 
 if [[ $CHECK_ONLY == 0 ]]; then
-  pipi "pillow>=10" numpy scipy soundfile psutil requests
+  # piper-tts is the Urdu voice. It is small and pure-CPU, so it is required
+  # rather than optional: it is now the default narration engine.
+  pipi "pillow>=10" numpy scipy soundfile psutil requests piper-tts
+fi
+
+# Fetch the voice weights once (63 MB, MIT). Cached in ~/.cache/urdu-voice,
+# which the render workflow carries across runs, so this is a no-op after the
+# first job on a warm cache.
+if [[ $CHECK_ONLY == 0 ]]; then
+  python3 -c "
+import sys; sys.path.insert(0, '.')
+from islamic.voice import fetch, DEFAULT_VOICE
+onnx, cfg = fetch(DEFAULT_VOICE)
+print(f'   voice  {onnx.name} ({onnx.stat().st_size // 1024 // 1024} MB)')
+" || echo "   note  Urdu voice not fetched; narration will fail"
 fi
 
 # TTS is only needed for the Urdu narration half of a video. It is a large
 # download, so failures here are reported but not fatal for card rendering.
 if [[ $CHECK_ONLY == 0 ]]; then
+  # MMS is the OLD voice and it is CC-BY-NC (non-commercial only). It stays
+  # available only as an A/B reference, so it is opt-in: --with-mms. Piper is
+  # the default, is MIT, and needs no torch at all.
   # --index-url (exclusive), NOT --extra-index-url: with an extra index pip can
   # resolve the PyPI 'torch' wheel, which bundles CUDA and is ~900 MB+. We want
   # the CPU build, and nothing else in this command comes from PyPI.
-  pipi "setuptools<81"
-  pipi torch --index-url https://download.pytorch.org/whl/cpu
-  pipi transformers
+  if [[ $WITH_MMS == 1 ]]; then
+    pipi "setuptools<81"
+    pipi torch --index-url https://download.pytorch.org/whl/cpu
+    pipi transformers
+  fi
 fi
 
 python3 - <<'PY'
 import importlib, sys
-need = [("PIL","pillow"),("numpy","numpy"),("scipy","scipy"),("soundfile","soundfile")]
-optional = [("torch","torch (Urdu narration)"),("transformers","transformers (Urdu narration)")]
+need = [("PIL","pillow"),("numpy","numpy"),("scipy","scipy"),("soundfile","soundfile"),
+        ("piper","piper-tts (Urdu voice, MIT, default)")]
+# MMS is kept only as a fallback engine. It is CC-BY-NC: non-commercial, so it
+# must never be what a monetised channel ships.
+optional = [("torch","torch (MMS fallback voice)"),
+            ("transformers","transformers (MMS fallback voice)")]
 bad = 0
 for mod, label in need:
     try:
