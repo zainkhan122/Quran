@@ -1,35 +1,8 @@
 {
-  "generated_at": "2026-10-11T10:30:55+00:00",
+  "generated_at": "2026-10-11T11:01:27+00:00",
   "count": 3,
   "note": "Every quote is fetched verbatim from api.quran.com / api.alquran.cloud and the fawazahmed0 hadith-api and shown with its citation. Quranic Arabic is real recitation, never synthesised speech.",
   "items": [
-    {
-      "file": "tirmidhi-2646.mp4",
-      "poster": "posters/tirmidhi-2646.jpg",
-      "reference": "tirmidhi:2646",
-      "kind": "hadith",
-      "grade": "Sahih - graded by Ahmad Shakir, Al-Albani, Zubair Zai",
-      "source": "Jami at-Tirmidhi, Hadith 2646",
-      "source_ar": "",
-      "topic": "Knowledge — read, and ask for more",
-      "topic_ur": "علم — پڑھو، اور مانگتے رہو",
-      "reciter": "",
-      "timings_source": "",
-      "arabic": "حَدَّثَنَا مَحْمُودُ بْنُ غَيْلاَنَ، حَدَّثَنَا أَبُو أُسَامَةَ، عَنِ الأَعْمَشِ، عَنْ أَبِي صَالِحٍ، عَنْ أَبِي هُرَيْرَةَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ طَرِيقًا إِلَى الْجَنَّةِ ‏\"‏ ‏.‏ قَالَ أَبُو عِيسَى هَذَا حَدِيثٌ حَسَنٌ ‏.‏",
-      "urdu": "ابوہریرہ رضی الله عنہ کہتے ہیں کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: ”جو علم حاصل کرنے کے ارادہ سے کہیں جائے، تو اللہ اس کے لیے جنت کے راستے کو آسان ( و ہموار ) کر دیتا ہے“ ۱؎۔ امام ترمذی کہتے ہیں: یہ حدیث حسن ہے۔",
-      "english": "Narrated Abu Hurairah:that the Messenger of Allah (ﷺ) said: \"Whoever takes a path upon which to obtain knowledge, Allah makes the path to Paradise easy for him",
-      "built_at": "2026-10-11T10:30:15",
-      "narration": {
-        "language": "English",
-        "voice": "en_michael",
-        "seconds": 12.12
-      },
-      "release": "renders-2026-10-11",
-      "width": 1080,
-      "height": 1920,
-      "seconds": 36.7,
-      "size_mb": 3.4
-    },
     {
       "file": "quran-30-21.mp4",
       "poster": "posters/quran-30-21.jpg",
@@ -45,7 +18,7 @@
       "arabic": "وَمِنْ ءَايَٰتِهِۦٓ أَنْ خَلَقَ لَكُم مِّنْ أَنفُسِكُمْ أَزْوَٰجًۭا لِّتَسْكُنُوٓا۟ إِلَيْهَا وَجَعَلَ بَيْنَكُم مَّوَدَّةًۭ وَرَحْمَةً ۚ إِنَّ فِى ذَٰلِكَ لَءَايَٰتٍۢ لِّقَوْمٍۢ يَتَفَكَّرُونَ",
       "urdu": "اور اسی کے نشانات (اور تصرفات) میں سے ہے کہ اُس نے تمہارے لئے تمہاری ہی جنس کی عورتیں پیدا کیں تاکہ اُن کی طرف (مائل ہوکر) آرام حاصل کرو اور تم میں محبت اور مہربانی پیدا کر دی جو لوگ غور کرتے ہیں اُن کے لئے ان باتوں میں (بہت سی) نشانیاں ہیں",
       "english": "And of His signs is that He created for you from yourselves mates that you may find tranquillity in them; and He placed between you affection and mercy. Indeed in that are signs for a people who give thought.",
-      "built_at": "2026-10-11T10:03:52",
+      "built_at": "2026-10-11T11:00:37",
       "narration": {
         "language": "English",
         "voice": "en_michael",
@@ -56,6 +29,33 @@
       "height": 1920,
       "seconds": 52.57,
       "size_mb": 5.81
+    },
+    {
+      "file": "tirmidhi-2646.mp4",
+      "poster": "posters/tirmidhi-2646.jpg",
+      "reference": "tirmidhi:2646",
+      "kind": "hadith",
+      "grade": "Sahih - graded by Ahmad Shakir, Al-Albani, Zubair Zai",
+      "source": "Jami at-Tirmidhi, Hadith 2646",
+      "source_ar": "",
+      "topic": "Knowledge — read, and ask for more",
+      "topic_ur": "علم — پڑھو، اور مانگتے رہو",
+      "reciter": "",
+      "timings_source": "",
+      "arabic": "حَدَّثَنَا مَحْمُودُ بْنُ غَيْلاَنَ، حَدَّثَنَا أَبُو أُسَامَةَ، عَنِ الأَعْمَشِ، عَنْ أَبِي صَالِحٍ، عَنْ أَبِي هُرَيْرَةَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ طَرِيقًا إِلَى الْجَنَّةِ ‏\"‏ ‏.‏ قَالَ أَبُو عِيسَى هَذَا حَدِيثٌ حَسَنٌ ‏.‏",
+      "urdu": "ابوہریرہ رضی الله عنہ کہتے ہیں کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: ”جو علم حاصل کرنے کے ارادہ سے کہیں جائے، تو اللہ اس کے لیے جنت کے راستے کو آسان ( و ہموار ) کر دیتا ہے“ ۱؎۔ امام ترمذی کہتے ہیں: یہ حدیث حسن ہے۔",
+      "english": "Narrated Abu Hurairah:that the Messenger of Allah (ﷺ) said: \"Whoever takes a path upon which to obtain knowledge, Allah makes the path to Paradise easy for him",
+      "built_at": "2026-10-11T11:00:20",
+      "narration": {
+        "language": "English",
+        "voice": "en_michael",
+        "seconds": 12.12
+      },
+      "release": "renders-2026-10-11",
+      "width": 1080,
+      "height": 1920,
+      "seconds": 36.7,
+      "size_mb": 3.4
     },
     {
       "file": "quran-81-8.mp4",
@@ -72,7 +72,7 @@
       "arabic": "وَإِذَا ٱلْمَوْءُۥدَةُ سُئِلَتْ",
       "urdu": "اور جب لڑکی سے جو زندہ دفنا دی گئی ہو پوچھا جائے گا",
       "english": "And when the girl [who was] buried alive is asked",
-      "built_at": "2026-10-11T10:02:36",
+      "built_at": "2026-10-11T11:00:09",
       "narration": {
         "language": "English",
         "voice": "en_michael",

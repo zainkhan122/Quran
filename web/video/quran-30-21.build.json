@@ -18,15 +18,11 @@
   },
   "reciter": "Mishary Rashid Alafasy",
   "timings_source": "api.quran.com v4 audio.segments",
-  "built_at": "2026-10-11T10:03:52",
+  "built_at": "2026-10-11T11:00:37",
   "pipeline": "islamic.studio (measured-ink layout, word-level reveal)",
   "arabic": "وَمِنْ ءَايَٰتِهِۦٓ أَنْ خَلَقَ لَكُم مِّنْ أَنفُسِكُمْ أَزْوَٰجًۭا لِّتَسْكُنُوٓا۟ إِلَيْهَا وَجَعَلَ بَيْنَكُم مَّوَدَّةًۭ وَرَحْمَةً ۚ إِنَّ فِى ذَٰلِكَ لَءَايَٰتٍۢ لِّقَوْمٍۢ يَتَفَكَّرُونَ",
   "urdu": "اور اسی کے نشانات (اور تصرفات) میں سے ہے کہ اُس نے تمہارے لئے تمہاری ہی جنس کی عورتیں پیدا کیں تاکہ اُن کی طرف (مائل ہوکر) آرام حاصل کرو اور تم میں محبت اور مہربانی پیدا کر دی جو لوگ غور کرتے ہیں اُن کے لئے ان باتوں میں (بہت سی) نشانیاں ہیں",
   "english": "And of His signs is that He created for you from yourselves mates that you may find tranquillity in them; and He placed between you affection and mercy. Indeed in that are signs for a people who give thought.",
   "word_count": 20,
-  "authenticity": {
-    "ok": true,
-    "verdict": "Qur'an - text agreed by 2 independent sources"
-  },
   "release": "renders-2026-10-11"
 }
