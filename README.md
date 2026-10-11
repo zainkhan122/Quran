@@ -86,10 +86,18 @@ bash setup.sh --check                          # session start: verify in second
 bash setup.sh                                  # repair/install path (~3 min cold)
 python3 tools/motifs.py                        # which topics have their own art
 python3 -m islamic.produce --ref quran:30:21 --topic marriage
-python3 -m islamic.produce --ref ibnmajah:224 --topic knowledge --english
+python3 -m islamic.produce --ref ibnmajah:224 --topic knowledge
+python3 tools/layout_report.py                 # where the vertical space goes
 python3 tools/publish.py                       # build folders -> web/video + manifest
 python3 -m http.server 8000 --directory web    # the site
 ```
+
+The voice reads **English** and the card carries **both** translations - that is
+the default, so a plain `--ref ... --topic ...` gives you the shippable clip.
+`--narrate urdu` and `--no-english` exist but are no longer the path. The
+default English voice is `en_free` (LibriTTS-R, CC BY 4.0) because it is now the
+voice of the channel; `--engine en` is the prettier, research-licensed one and
+is for A/B only.
 
 `setup.sh` is not optional: this sandbox keeps only files under `/home/user`, so
 ffmpeg, the Python wheels and the fonts all have to be re-asserted each session.
@@ -129,11 +137,13 @@ islamic/
   timings.py    per-word timings from api.quran.com audio.segments
   studio.py     the renderer: design system, layout, ornament, frame loop
   produce.py    the CLI that ties it together
-  narrate.py    Urdu narration in a child process (keeps the box free for ffmpeg)
+  narrate.py    narration in a child process (keeps the box free for ffmpeg)
+  english.py    English speech/display prep; the font-coverage substitutions
 tools/
   fetch_fonts.py  download + verify OFL fonts (verify by magic bytes, not name)
   motifs.py       the 2D art registry and its prompts
   publish.py      build folders -> web/video + manifest.json + posters, prunes stale
+  layout_report.py  the card's vertical budget per clip (header/body/type sizes)
 naat/           Urdu TTS (used for translation narration only)
 web/            the site: index.html, videos, fonts, posters
 assets/         fonts/, textures/, motifs/

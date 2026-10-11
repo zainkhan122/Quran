@@ -36,6 +36,18 @@ _FOOTNOTE = re.compile(r"[\[(]\s*(?:note\s*)?\d{1,3}\s*[\])]", re.IGNORECASE)
 #: footnote when the bracket was lost in transcription: "mercy.2 Indeed..."
 _LONE_MARK = re.compile(r"(?<=[a-z.,;:)\]])\d{1,2}(?=\s|$)")
 
+#: Arabic honorific ligatures: one codepoint each, and no English voice can
+#: pronounce them. They are not decoration to be dropped either - in a hadith
+#: "the Messenger of Allah (peace be upon him) said" is part of the sentence, so
+#: the honouring is spoken in full rather than silently swallowed.
+_HONORIFIC = {
+    "\ufdfa": "peace be upon him",           # U+FDFA SALLALLAHU ALAYHI WA SALLAM
+    "\ufdfb": "may He be glorified",          # U+FDFB JALLA JALALUH
+    "\ufdfd": "may Allah be pleased with him",
+    "\u0610": "", "\u0611": "", "\u0612": "", "\u0613": "",   # Quranic marks
+    "\u06dd": "", "\u06de": "",                                # ayah / rub el hizb
+}
+
 #: Characters that carry no sound but do carry meaning for the pauser.
 _REPLACE = {
     "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
@@ -53,6 +65,8 @@ def normalize_for_speech_en(text: str, *, drop_comments: bool = True) -> str:
 
     t = _FOOTNOTE.sub(" ", t)
     t = _LONE_MARK.sub(" ", t)
+    for k, v in _HONORIFIC.items():
+        t = t.replace(k, v)
     for k, v in _REPLACE.items():
         t = t.replace(k, v)
 
@@ -64,6 +78,24 @@ def normalize_for_speech_en(text: str, *, drop_comments: bool = True) -> str:
         if ln:
             lines.append(ln)
     return "\n".join(lines)
+
+
+def for_display(text: str) -> str:
+    """English text with the glyphs our fonts cannot draw spelled out.
+
+    U+FDFA is one codepoint and DejaVu has no glyph for it, so the card drew an
+    empty box in the middle of a sentence about the Prophet. The fallback font
+    cannot be swapped for one character inside a Latin paragraph, so the
+    honouring is written out in the language of the sentence - which is how
+    English Islamic publishing sets it anyway, and it is what the voice has to
+    say regardless.
+
+    Deliberately NOT a normaliser: it touches only characters that would
+    otherwise render as .notdef, and nothing else about the text changes.
+    """
+    for k, v in _HONORIFIC.items():
+        text = text.replace(k, v)
+    return text
 
 
 def words(text: str) -> list[str]:

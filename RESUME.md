@@ -105,5 +105,8 @@ that persists reliably, so:
   exists only in the workspace;
 * **renders live in the repo** (`web/video/`) so the published site and the
   artefacts it points at are versioned together;
+* **narration is ENGLISH by default** (`--narrate english`, voice `en_free`,
+  CC BY 4.0) and the card always shows both translations. If a clip comes out
+  with no voice, check you have not passed `--narrate urdu`.
 * **the workspace holds only: the repo, the token, and the sample files currently
   under review.** Anything else is scratch and gets deleted.

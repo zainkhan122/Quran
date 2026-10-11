@@ -55,8 +55,9 @@ BIG_TRACKED_MB = 3.0
 WS_WARN_MB = 118
 
 
-def sh(cmd: list[str], **kw) -> str:
-    return subprocess.run(cmd, capture_output=True, text=True, **kw).stdout
+def sh(cmd: list[str], stdin_text: str | None = None, **kw) -> str:
+    p = subprocess.run(cmd, input=stdin_text, capture_output=True, text=True, **kw)
+    return p.stdout
 
 
 def dir_mb(p: Path) -> float:
@@ -115,6 +116,36 @@ def api(path: str, tok: str | None, method: str = "GET"):
 
 
 # ---------------------------------------------------------------------------
+def superseded_blobs() -> list[tuple[float, str, str]]:
+    """Clip blobs still in history that no current file needs any more.
+
+    Every re-render commits a new mp4 over the old one, and the old blob stays
+    in `.git` for ever: after three re-renders the repository carried 26.6 MB of
+    clip bytes for a 10.7 MB published set. They are invisible to `du` on the
+    working tree, which is exactly why they need reporting.
+    """
+    out = sh(["git", "rev-list", "--objects", "--all"], cwd=ROOT)
+    rows = sh(["git", "cat-file", "--batch-check=%(objecttype) %(objectname) "
+               "%(objectsize) %(rest)"], cwd=ROOT, stdin_text=out)
+    current = {}
+    for rel in sh(["git", "ls-files"], cwd=ROOT).splitlines():
+        try:
+            current[rel] = (ROOT / rel).stat().st_size
+        except OSError:
+            current[rel] = 0
+    stale = []
+    for line in rows.splitlines():
+        parts = line.split(" ", 3)
+        if len(parts) < 4 or parts[0] != "blob":
+            continue
+        size, rel = int(parts[2]), parts[3]
+        if rel.startswith("web/video/") and rel.endswith(".mp4") \
+                and size != current.get(rel):
+            stale.append((round(size / 1e6, 1), parts[1][:10], rel))
+    stale.sort(reverse=True)
+    return stale
+
+
 def report() -> dict:
     ws = workspace_mb()
     git_dir = dir_mb(ROOT / ".git")
@@ -138,9 +169,12 @@ def report() -> dict:
              for p in sorted(WORKSPACE.glob("*"))
              if p.is_file() and p.name != "naat-ai-ahead.bundle"]
 
+    stale = superseded_blobs()
     return {"workspace_mb": round(ws, 1), "snapshot_limit_mb": 128.0,
             "repo_mb": round(repo, 1), "git_mb": round(git_dir, 1),
-            "scratch": scratch, "big_tracked": big, "loose_workspace_files": loose}
+            "scratch": scratch, "big_tracked": big, "loose_workspace_files": loose,
+            "superseded_clip_mb": round(sum(s[0] for s in stale), 1),
+            "superseded_clips": stale[:8]}
 
 
 def print_report(r: dict) -> None:
@@ -161,6 +195,25 @@ def print_report(r: dict) -> None:
         print("\n\033[1m== largest tracked files\033[0m")
         for mb, rel in r["big_tracked"][:10]:
             print(f"      {mb:6.1f} MB  {rel}")
+
+    if r.get("superseded_clip_mb"):
+        print("\n\033[1m== superseded clips still in history\033[0m")
+        for mb, sha, rel in r["superseded_clips"]:
+            print(f"      {mb:6.1f} MB  {sha}  {rel}")
+        print(f"      {r['superseded_clip_mb']:.1f} MB of retired renders are still"
+              f" in .git.\n"
+              f"      `git gc` will NOT reclaim them: they are reachable from the"
+              f" commits that published\n"
+              f"      them, so only a history rewrite frees the space - the same"
+              f" procedure used for the\n"
+              f"      abandoned output/ audio on 2026-10-11 (docs/CLEANUP-LOG.md):\n"
+              f"        git filter-branch -f --index-filter \\\n"
+              f"          'git rm -r --cached --ignore-unmatch <path>' -- main\n"
+              f"        git reflog expire --expire=now --all && git gc --prune=now\n"
+              f"        git push --force-with-lease origin main   # then re-verify\n"
+              f"      Batch it: every re-render adds another ~11 MB, so squeeze when"
+              f" the workspace\n"
+              f"      is within ~15 MB of the limit rather than after every render.")
 
     if r["loose_workspace_files"]:
         print("\n\033[1m== loose files in the workspace\033[0m")
