@@ -6,8 +6,11 @@ If this file and the repo disagree, the repo wins — fix this file.
 
 ## ⚠ One commit is local-only (2026-10-11)
 
-`6c5eadf` — the approved voice, all three clips re-rendered — is **committed but
-not pushed.** The sandbox rolled back mid-session and took `/tmp/.ght` with it
+`38564e5` (**was `6c5eadf`** — the history was rewritten again to drop 39.1 MB
+of retired renders, see `docs/CLEANUP-LOG.md`) — the approved voice, all three
+clips re-rendered — is **committed but not pushed.** The remote is still at
+`7134eeb`, which is the pre-rewrite tip, so this **needs `--force-with-lease`**,
+not a plain push. The sandbox rolled back mid-session and took `/tmp/.ght` with it
 (by design: the token never lives inside `/home/user`, so a snapshot can never
 leak it). `.git/config` went too; it was restored from
 `setup/git-config.template`.
@@ -18,7 +21,7 @@ To finish the push, paste the token again and:
 printf '%s' '<token>' > /tmp/.ght && chmod 600 /tmp/.ght
 cd /home/user/naat-ai && TOK=$(cat /tmp/.ght) \
   && git remote set-url origin "https://x-access-token:${TOK}@github.com/zainkhan122/Quran.git" \
-  && git push origin main \
+  && git push --force-with-lease origin main \
   && git remote set-url origin "https://github.com/zainkhan122/Quran.git"
 ```
 
@@ -163,10 +166,11 @@ seconds.
   Urdu and two of English inside equal halves, so there is empty frame between
   them. The halves are the owner's spec; filling the space would mean changing
   it. Worth asking before changing.
-* **Every re-render leaves the previous mp4 in history** (~11 MB per cycle;
-  28 MB retired renders are in `.git` today). `tools/cleanup.py` reports them.
-  `git gc` cannot free them — they are reachable — so the fix is a batched
-  history rewrite, documented in the report and in `docs/CLEANUP-LOG.md`.
+* **Every re-render leaves the previous mp4 in history** (~11 MB per cycle).
+  This was squeezed twice on 2026-10-11 — see `docs/CLEANUP-LOG.md` for both
+  procedures and the trap that makes `git gc` useless for it (a
+  `refs/remotes/origin/*` ref holding the old commits alive). Headroom is
+  42.5 MB now; squeeze again when it falls under ~15 MB.
 * **The ۱؎ footnote dagger in some hadith texts renders as cryptic marks.** It is
   faithful to the source and the speech path strips it; stripping it from the
   card too is a content decision the owner should make.
