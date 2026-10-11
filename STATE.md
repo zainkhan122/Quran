@@ -1,4 +1,4 @@
-# State — 2026-10-11 (after Phase 1)
+# State — 2026-10-11 (Phase 2 built, dispatch pending)
 
 Resume capsule. One screen. If this file and the repo disagree, the repo wins —
 fix this file.
@@ -7,9 +7,29 @@ fix this file.
 
 * **Phases 0 and 1 are complete.** The studio renders, and all three clips are
   published to `web/video/`.
-* **Next is Phase 2 — cloud rendering.** The local box has no blockers left; the
-  reason to move is that a GitHub runner gives 4 vCPU / 16 GB free on a public repo
-  versus 2 GB here, which is 6–17× faster and removes the memory ceiling entirely.
+* **Phase 2 is built and rehearsed but not yet dispatched.** Every new piece was
+  tested locally; the outstanding step is the one that needs GitHub credentials —
+  push, then dispatch the run. See *The one thing blocking Phase 2*.
+
+## The one thing blocking Phase 2
+
+The sandbox reset wiped `/tmp/.ght`, where the PAT lives. That is the design
+working correctly — `/tmp` is outside the snapshot on purpose, because the
+workspace is shareable and the repo is public — but it means the token has to be
+supplied again to push. The workflow itself needs **no** PAT: it uses GitHub's
+automatic `GITHUB_TOKEN`.
+
+```bash
+printf '%s' '<token>' > /tmp/.ght && chmod 600 /tmp/.ght
+tools/cloud.sh push                          # the Phase 2 commits
+tools/cloud.sh render quran-81-8             # ONE clip first, to validate the runner
+tools/cloud.sh runs                          # then read the run id
+tools/cloud.sh logs <run-id>
+tools/cloud.sh render                        # then the full library
+```
+
+Validate on one clip before fanning out: it costs minutes and catches a
+runner-environment failure without burning three parallel runners on it.
 
 ## The published set (verified this session)
 
@@ -64,16 +84,14 @@ is missing (the workspace snapshot excludes it), and the PAT lives at `/tmp/.ght
 
 ## Next session, in order
 
-1. `bash setup.sh --check`, then read `PHASES.md` → Phase 2.
-2. Add `.github/workflows/render.yml`: matrix over references, one runner each,
-   `max-parallel` 5, outputs to a Release. Model it on the design in `PHASES.md`
-   § *Auto-render plan*, which records what was verified about runner specs and cost.
-3. The runner needs `bash setup.sh` (no apt fonts required — the fonts are committed)
-   and no secrets: **use the automatic `GITHUB_TOKEN` with `contents: write`**, not a
-   personal PAT. Do not add a PAT to the repo or to the workflow.
-4. Render one reference on the runner before fanning out; compare its output against
-   the local render of the same reference.
-5. Update this file and `PHASES.md`, commit, push.
+1. `bash setup.sh --check`; `cp setup/git-config.template .git/config` if the remote
+   is missing. Read `PHASES.md` → Phase 2, then the runbook above.
+2. Restore the token, then `tools/cloud.sh push`.
+3. Dispatch one clip, read its job log, and compare the runner's output against the
+   local render of the same clip — duration, size and loudness should all agree.
+4. If it holds, dispatch the full library, and confirm the Release and the site commit.
+5. Mark Phase 2 done, then start Phase 3: expand `tools/check_video.py` into the full
+   QA layer.
 
 ## Open items, honestly
 
@@ -86,3 +104,8 @@ is missing (the workspace snapshot excludes it), and the PAT lives at `/tmp/.ght
 * `ibnmajah:224` is graded "See a scholar — this collection contains a range of
   grades", which is shown on the frame. A better-sourced collection would let the
   set lead with a hadith whose grade is unambiguous.
+* The cloud workflow commits `web/video` to `main`, so a local session must
+  `git fetch` before committing or it will diverge. Phase 5 could move delivery to a
+  Pages artifact instead, removing the churn.
+* `tools/cloud.sh` is thin and its argument handling is unverified beyond the
+  no-token path.
