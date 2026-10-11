@@ -5,3 +5,14 @@ __pycache__/
 *.pyc
 .cache/
 node_modules/
+
+# MEDIA IS NEVER COMMITTED. The published clips and posters live in GitHub
+# Releases; git keeps the manifest and each clip's build record (its citation).
+# tools/fetch_media.py pulls the media back for Pages or a local preview.
+web/video/*.mp4
+web/video/posters/
+docs/samples/
+*.mp4
+*.wav
+*.mp3
+*.m4a

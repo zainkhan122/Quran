@@ -1,0 +1,74 @@
+# Deploy the site to GitHub Pages - with the media pulled from Releases.
+#
+# Git carries web/ (the page, the manifest, each clip's citation) but not the
+# mp4s or posters. This job assembles the real site: checkout, download each
+# clip's media from the Release its manifest entry names, verify every file,
+# and deploy the folder as a Pages artifact. Nothing it downloads is ever
+# committed.
+#
+# Runs three ways:
+#   * called by render.yml after a render publishes (pushes made with the
+#     workflow's own GITHUB_TOKEN do not trigger other workflows, so render
+#     calls this directly rather than relying on the push below);
+#   * on a push to main that touches web/ (a hand edit to the page);
+#   * by hand: gh workflow run pages.yml
+#
+# One-time setting: Settings -> Pages -> Source = "GitHub Actions".
+# tools/cloud.sh pages-enable does it through the API.
+
+name: pages
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["web/**"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # The branch tip, not the commit that started the run: when render.yml
+      # calls this, its publish job has just pushed a new manifest.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Fetch media from Releases
+        run: python3 tools/fetch_media.py
+
+      - name: Verify the site
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, sys
+          web = pathlib.Path("web/video")
+          m = json.loads((web / "manifest.json").read_text(encoding="utf-8"))
+          missing = [i["file"] for i in m["items"] if not (web / i["file"]).exists()]
+          missing += [i["poster"] for i in m["items"]
+                      if i.get("poster") and not (web / i["poster"]).exists()]
+          if missing:
+              sys.exit(f"the site would serve cards with no media: {missing}")
+          print(f"{m['count']} clip(s), every one with its video and poster")
+          PY
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deployment
+        uses: actions/deploy-pages@v4

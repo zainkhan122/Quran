@@ -10,8 +10,15 @@
 #   plan    read library.json -> a matrix of {slug, ref, topic}
 #   render  one runner per clip, up to 5 in parallel; each renders, is gated by
 #           tools/check_video.py, and uploads ONLY its own mp4 + build record
-#   publish one runner collects the artifacts, writes the site, uploads the
-#           Release, and commits web/
+#   publish one runner collects the artifacts, uploads the media to a GitHub
+#           Release, and commits ONLY the manifest + build records (text)
+#   pages   deploys the site, pulling the media back out of the Release
+#
+# Media never enters git. Until 2026-10-11 this job committed the mp4s into
+# web/video/, every re-render added ~11 MB of permanent history, and the repo
+# needed three history rewrites in one day to stay under the workspace limit.
+# Now web/video/*.mp4 and posters are git-ignored, the Release is the store,
+# and pages.yml assembles the site at deploy time.
 #
 # No secrets are needed. The automatic GITHUB_TOKEN covers the release and the
 # commit; nothing here requires a personal access token, and none may be added.
@@ -70,6 +77,13 @@ jobs:
       # gate must stop the run, not silently pass everything through it.
       - name: Test the gates
         run: python3 -m unittest discover -s tests -v
+
+      # Authenticity, before any render: Qur'an text agreed letter-for-letter by
+      # two independent sources, hadith graded sahih/hasan with no grader
+      # dissenting. One failure stops the whole run - a clip planned on a weak
+      # narration is a planning error, not something to render around.
+      - name: Authenticity gate
+        run: python3 -m islamic.verify --library
 
   render:
     name: render ${{ matrix.clip.slug }}
@@ -156,8 +170,11 @@ jobs:
 
       - name: Build the site
         # Not --exact: rendering a subset must leave the rest of the library on
-        # the site rather than pruning it.
-        run: python3 tools/publish.py
+        # the site rather than pruning it. --release records, per clip, which
+        # Release holds its media, so pages.yml can fetch it back.
+        env:
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: python3 tools/publish.py --release "$TAG" --prune-posters
 
       - name: Verify the site
         run: |
@@ -166,10 +183,10 @@ jobs:
           m = json.loads(pathlib.Path("web/video/manifest.json").read_text(encoding="utf-8"))
           n = m["count"]
           print(f"manifest lists {n} clip(s)")
-          bad = [i["file"] for i in m["items"]
-                 if not (pathlib.Path("web/video") / i["file"]).exists()]
+          # every clip names the Release that holds it, or Pages cannot build
+          bad = [i["file"] for i in m["items"] if not i.get("release")]
           if bad:
-              sys.exit(f"manifest points at missing files: {bad}")
+              sys.exit(f"manifest items with no release to serve them from: {bad}")
           if n == 0:
               sys.exit("manifest is empty")
           PY
@@ -183,8 +200,17 @@ jobs:
           gh release view "$TAG" >/dev/null 2>&1 \
             || gh release create "$TAG" --title "$TAG" \
                  --notes "Cloud renders from library.json. Masters for the web set."
-          gh release upload "$TAG" output/video/*.mp4 output/video/*.build.json \
-            web/video/posters/*.jpg --clobber
+          # Only this run's clips: carried-forward ones already live in the
+          # Release their manifest entry names.
+          shopt -s nullglob
+          files=(output/video/*.mp4 output/video/*.build.json)
+          for m in output/video/*.mp4; do
+            p="web/video/posters/$(basename "${m%.mp4}").jpg"
+            [ -f "$p" ] && files+=("$p")
+          done
+          gh release upload "$TAG" "${files[@]}" --clobber
+          # A carried-forward clip from an older release must still be there.
+          python3 tools/fetch_media.py --check
 
       - name: Commit the site
         if: ${{ inputs.sync_site }}
@@ -192,7 +218,12 @@ jobs:
           set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add web/video
+          # .gitignore keeps the mp4s and posters out; this stages the
+          # manifest and the build records only. Assert it, rather than trust it.
+          git add -A web/video
+          if git diff --cached --name-only | grep -E '\.(mp4|jpg)$'; then
+            echo "refusing to commit media into git (see .gitignore)"; exit 1
+          fi
           if git diff --cached --quiet; then
             echo "site already matches the render — nothing to commit"
           else
@@ -201,3 +232,13 @@ jobs:
             # detached HEAD must not be able to push nowhere and report success.
             git push origin "HEAD:${{ github.ref_name }}"
           fi
+
+  pages:
+    name: deploy site
+    needs: publish
+    if: ${{ inputs.sync_site }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml

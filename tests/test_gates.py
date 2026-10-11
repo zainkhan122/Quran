@@ -169,7 +169,9 @@ class TestPlan(unittest.TestCase):
     def test_require_audio_is_derived_from_the_reference(self):
         by_slug = {c["slug"]: c for c in plan_render.load_library()}
         self.assertTrue(by_slug["quran-30-21"]["require_audio"])
-        self.assertFalse(by_slug["ibnmajah-224"]["require_audio"])
+        # the hadith in the library (ibnmajah-224 until it was withdrawn as
+        # Very Da'if) is a silent-recitation card
+        self.assertFalse(by_slug["tirmidhi-2646"]["require_audio"])
 
     def test_slug_ref_mismatch_is_refused(self):
         # A slug that does not match its reference is how a video ends up filed

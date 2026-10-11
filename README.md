@@ -89,7 +89,9 @@ python3 -m islamic.produce --ref quran:30:21 --topic marriage
 python3 -m islamic.produce --ref ibnmajah:224 --topic knowledge
 python3 tools/layout_report.py                 # where the vertical space goes
 python3 tools/publish.py                       # build folders -> web/video + manifest
+python3 tools/fetch_media.py                    # pull the published clips from their Release
 python3 -m http.server 8000 --directory web    # the site
+python3 tools/fetch_media.py --clean            # and delete the local copies after
 ```
 
 The voice reads **English** and the card carries **both** translations - that is
@@ -97,7 +99,7 @@ the default, so a plain `--ref ... --topic ...` gives you the shippable clip.
 `--narrate urdu` and `--no-english` exist but are no longer the path.
 
 The English voice is **Kokoro-82M `am_michael`** (Apache-2.0, 117 Hz), chosen by
-the owner from `docs/samples/voice-audition-en.mp3` - a pack built by
+the owner from the `voice-approval` release (`voice-audition-en.mp3`) - a pack built by
 `tools/voice_audition.py`. Four other male Kokoro voices are catalogued
 (`en_onyx`, `en_fenrir`, `en_george`, `en_lewis`), so changing the voice is one
 flag. `en_free` is kept only for the A/B that established it is **not male**:
@@ -178,3 +180,17 @@ written consent.
 *(The `naat/` package is the Urdu VITS + tarannum engine, retained because the
 video pipeline uses its TTS for translation narration. Naat generation itself is
 not a goal of this project.)*
+
+
+## Where things live
+
+* **git**: code, the page, `web/video/manifest.json` and one `*.build.json` per
+  clip (its citation, grade and narration voice). **No media, ever**; the
+  `.gitignore` enforces it and the render workflow refuses to commit one.
+* **GitHub Releases**: the published mp4s and posters, one release per render
+  day (`renders-YYYY-MM-DD`), plus `voice-approval` (the audition pack the
+  narration voice was chosen from). The weekly cleanup never deletes a release
+  the manifest still serves from.
+* **GitHub Pages**: the site, assembled by `pages.yml` at deploy time from git
+  plus the Releases.
+* **Sources and verification**: see `SOURCES.md`.

@@ -65,6 +65,31 @@ lines, doubling the block. `_fit_topic` now searches for the largest size whose
 block fits the budget, charging a fixed penalty per extra line so a headline
 that only just wraps does not win over a slightly smaller one-line one.
 
+## Cadence: the recommendation (2026-10-11)
+
+The owner asked for 3-5 shorts a day. The recommendation is to **start at 3 a
+day and earn the move to 5.** The limit is not render capacity: a free runner
+renders a clip in minutes. The limit is the pool of verified material.
+
+* **3 slots a day, tied to the day's rhythm** (Pakistan time): after Fajr
+  (~06:30), after Zuhr (~13:30) and after Isha (~21:00). One slot each for
+  Qur'an, Hadith and Du'a, each on a different topic.
+* **No topic twice within 48 h; no reference again within 90 days.** At 3 a day
+  that needs about **270 verified refs** for a clean 90-day cycle. Today there
+  are **32**, so the pool, not the schedule, is the bottleneck. Phase 5 grows it
+  ~10 refs at a time, each batch through `islamic.verify` and `--audit`.
+* **Go to 4-5 a day only when** the pool has more than 90 days of material at
+  that rate, and the first weeks show retention holding. Volume that repeats
+  itself, or that outruns review, costs more than it earns.
+* **Consistency beats volume.** The same slots every day matter more than the
+  count.
+* Uploading to YouTube is **not automated yet.** API uploads now have their own
+  bucket of 100 calls a day, separate from the 10,000-unit pool, so the quota is
+  not the constraint. YouTube does restrict uploads from an unaudited API
+  project to *private* until the project passes its compliance audit. Until
+  then, upload by hand from the published set, or get the API project audited
+  first.
+
 ## Voice: APPROVED — Michael (Kokoro am_michael)
 
 The English narration was rejected — *"TTS is very bad for English. use male
@@ -77,7 +102,7 @@ catalogued **male** and **measures 248-250 Hz — the female range.** The owner
 heard a defect we had recorded as a fact, and the catalogue was wrong.
 
 **The owner auditioned six male voices and chose "Michael."**
-`docs/samples/voice-audition-en.mp3` is the pack that was approved and
+the `voice-approval` release (`voice-audition-en.mp3`) is the pack that was approved and
 `tools/voice_audition.py` is the tool that built it. Kokoro-82M: Apache-2.0,
 353 MB, RTF 0.86, 13 male voices. Every candidate's pace and pitch were
 measured by an instrument validated against synthetic tones
@@ -118,8 +143,8 @@ the render workflow caches `~/.cache/kokoro` beside `~/.cache/urdu-voice`.
 
 Not by an engine change — the Urdu voice is simply no longer used. Urdu stays on
 the card as text. That retires the "get a native Urdu speaker to judge the
-voice" item; `docs/samples/voice-samples.mp3` is kept only as the record of that
-work, in case `--narrate urdu` is ever revisited.
+voice" item. The old Urdu sample reel (`voice-samples.mp3`) was deleted in the
+2026-10-11 media cleanup; `--narrate urdu` regenerates one if it is ever needed.
 
 ## Run these before you commit
 

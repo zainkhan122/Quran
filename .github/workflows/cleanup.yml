@@ -3,9 +3,10 @@ name: cleanup
 # Weekly housekeeping, so the repo does not creep toward its storage limit.
 #
 # What it does, and what it deliberately does not:
-#   * deletes OLDER GitHub Release assets. The published set in web/video/ is
-#     committed and is what the site links to, so a Release asset is a duplicate
-#     copy - losing one costs nothing that is not in git.
+#   * deletes OLDER GitHub Release assets - but NEVER a release the live
+#     manifest names. Since 2026-10-11 Releases are the only copy of the
+#     published media (git holds the manifest and the citations), so the
+#     releases the site serves from are untouchable; only superseded ones go.
 #   * reports the repo size and the largest tracked files, so growth is visible
 #     before it is a problem.
 #   * NEVER deletes a release whose tag is referenced by any document in the
@@ -59,21 +60,17 @@ jobs:
 
       - name: Verify the published set is intact
         # The one thing this job must never break: every clip the manifest
-        # advertises must still exist, with its provenance, in the repo.
+        # advertises must still have its citation in git and its media in the
+        # Release it names.
         run: |
           python3 - <<'PY'
           import json, pathlib, sys
-          root = pathlib.Path(".")
-          man = json.loads((root / "web/video/manifest.json").read_text())
-          missing = []
-          for item in man.get("items", []):
-              slug = item.get("slug") or item.get("file", "").replace(".mp4", "")
-              for suffix in (".mp4", ".build.json"):
-                  if not (root / "web/video" / f"{slug}{suffix}").exists():
-                      missing.append(f"{slug}{suffix}")
-          n = len(man.get("items", []))
-          if missing:
-              print(f"BROKEN: manifest advertises {n} clip(s) but these are gone: {missing}")
-              sys.exit(1)
-          print(f"intact: {n} clip(s), each with its build record")
+          web = pathlib.Path("web/video")
+          man = json.loads((web / "manifest.json").read_text())
+          gone = [i["file"] for i in man.get("items", [])
+                  if not (web / i["file"].replace(".mp4", ".build.json")).exists()]
+          if gone:
+              sys.exit(f"BROKEN: no citation in git for {gone}")
+          print(f"citations: {len(man.get('items', []))} clip(s), each with its build record")
           PY
+          python3 tools/fetch_media.py --check

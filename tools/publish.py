@@ -28,6 +28,15 @@ is held back with its reason printed, and the run exits non-zero so CI notices.
 The gate is repeated here even though the render job already runs it, because
 this is the last point before publication and it is cheap.
 
+MEDIA IS NOT COMMITTED (2026-10-11). The mp4s and posters this writes into
+web/video/ are git-ignored. Each item records the GitHub Release that holds its
+media (`--release TAG`), the render workflow uploads the files there, and the
+Pages workflow pulls them back into the site at deploy time
+(tools/fetch_media.py). Git keeps only what is small and must be reviewable:
+the manifest and each clip's build record - the citation. Before this, every
+re-render added ~11 MB of permanent history and the repo needed a history
+rewrite three times in one day.
+
 This tool copies the videos into web/video/, extracts a poster frame for each,
 and writes web/video/manifest.json which the site renders from. Stale videos are
 pruned, so the site can never show a card pointing at a file that is no longer
@@ -116,7 +125,14 @@ def _file_stamp(p: Path) -> float:
         return -1.0
 
 
-def collect(build_dirs: list[str]) -> tuple[list[dict], list[str]]:
+def library_refs() -> set[str]:
+    """What is still planned. A published clip whose reference has left
+    library.json is retired - that is now the one way to take a clip down."""
+    d = _read_json(ROOT / "library.json", {})
+    return {c.get("ref", "") for c in d.get("clips", [])}
+
+
+def collect(build_dirs: list[str], release: str = "") -> tuple[list[dict], list[str]]:
     """Every publishable clip, each described by its own build record.
 
     Returns (items, held_back_reasons). A clip that fails the gate is not an
@@ -200,8 +216,16 @@ def collect(build_dirs: list[str]) -> tuple[list[dict], list[str]]:
                 "urdu": pick("urdu"),
                 "english": pick("english"),
                 "built_at": pick("built_at") or s.get("collected_at", ""),
+                "narration": build.get("narration") or {},
+                # where the media lives; "" for a local-only preview build
+                "release": release,
                 **meta,
             })
+            if build and release:
+                build["release"] = release
+                rec = WEB / filename.replace(".mp4", ".build.json")
+                rec.write_text(json.dumps(build, ensure_ascii=False, indent=2),
+                               encoding="utf-8")
     return items, held
 
 
@@ -216,27 +240,39 @@ def main() -> int:
                          "The default is deliberately NOT this: rendering a subset "
                          "(the cloud workflow's `only` input) must not delete the "
                          "rest of the library from the site.")
+    ap.add_argument("--release", default="",
+                    help="GitHub Release tag that will hold this run's media; "
+                         "recorded per item so Pages can fetch it back")
     a = ap.parse_args()
     WEB.mkdir(parents=True, exist_ok=True)
     (WEB / "posters").mkdir(exist_ok=True)
 
-    items, held = collect(a.dirs or BUILD_DIRS)
+    items, held = collect(a.dirs or BUILD_DIRS, a.release)
     freshly_built = {i["file"] for i in items}
     held_names = {h.split(":", 1)[0] for h in held}
 
     # Carry forward what is already live but was not rebuilt in this run.
     if not a.exact:
         previous = _read_json(WEB / "manifest.json", {})
+        planned = library_refs()
         for old in previous.get("items", []):
             name = old.get("file", "")
             if not name or name in freshly_built:
                 continue
+            # Retirement is by plan, not by a missing file: on a cloud runner
+            # the mp4s are not in the checkout at all (they live in a Release),
+            # so "the file is gone" no longer means anything.
+            if old.get("reference") not in planned:
+                print(f"  retired {name} ({old.get('reference')} is no longer in "
+                      f"library.json)")
+                continue
             live = WEB / name
-            if not live.exists():
-                # Deleted from the site folder: that is how a clip is retired.
+            if not live.exists() and not old.get("release"):
+                print(f"  ! dropped {name}: no local file and no release to fetch it from")
                 continue
             kept = dict(old)
-            kept.update(probe(live))
+            if live.exists():
+                kept.update(probe(live))
             items.append(kept)
             # Say which of the two it is. "Not rebuilt" and "rebuilt but held
             # back" look identical on the site — the old file stays either way —
@@ -248,7 +284,7 @@ def main() -> int:
                 print(f"  kept {name} (published earlier, not built in this run)")
 
     # newest first by mtime, so a fresh build lands at the top of the site
-    items.sort(key=lambda i: _file_stamp(WEB / i["file"]), reverse=True)
+    items.sort(key=lambda i: i.get("built_at") or "", reverse=True)
 
     manifest = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -268,6 +304,10 @@ def main() -> int:
         if p.name not in keep:
             p.unlink()
             print(f"  pruned {p.name} (not built and not in the previous manifest)")
+    for p in WEB.glob("*.build.json"):
+        if p.name.replace(".build.json", ".mp4") not in keep:
+            p.unlink()
+            print(f"  pruned {p.name} (its clip is retired)")
     if a.prune_posters:
         keep_p = {Path(i["poster"]).name for i in items}
         for p in (WEB / "posters").glob("*.jpg"):

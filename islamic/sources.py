@@ -57,8 +57,10 @@ TRUSTED_COLLECTIONS: dict[str, str] = {
     "nasai":    "Sunan an-Nasai",
     "malik":    "Muwatta Malik",
 }
-# Collections whose contents are sahih by the compiler's own criterion.
-INTRINSICALLY_SAHIH = {"bukhari", "muslim", "nawawi", "qudsi", "dehlawi"}
+# There used to be an INTRINSICALLY_SAHIH set here that included the three
+# forty-hadith anthologies. It was the wrong question - "is the collection
+# trusted?" - and it is replaced by islamic/verify.py, which asks the right
+# one: "what do the graders say about THIS narration?"
 
 # Collections that carry an Urdu edition in the source API. Others are
 # Arabic + English only, which is fine for cards but means no Urdu narration.
@@ -187,8 +189,16 @@ def hadith(collection: str, number: int, topic: str = "") -> VerbatimItem:
         raise ContentError(f"{collection}:{number} not found")
 
     name = TRUSTED_COLLECTIONS[collection]
-    grade = ("Sahih (by the compiler's criterion)" if collection in INTRINSICALLY_SAHIH
-             else "See a scholar — this collection contains a range of grades")
+    # The grade line on the card is the authenticity gate's verdict on THIS
+    # narration, not a statement about its collection. It used to say "See a
+    # scholar - this collection contains a range of grades" for every Sunan
+    # hadith, which is how a Very Da'if narration went out with a disclaimer
+    # instead of being stopped. A refused narration gets no line at all here;
+    # produce.py refuses to render it before this matters.
+    from .verify import judge
+    ok, grade, _why = judge(collection, (eng or ara or {}).get("grades") or [])
+    if not ok:
+        grade = "REFUSED by the authenticity gate"
 
     item = VerbatimItem(
         kind="hadith",

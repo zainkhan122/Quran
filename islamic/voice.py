@@ -115,7 +115,7 @@ DEFAULT_VOICE = "fasih"
 #: "2 - Michael". Kokoro am_michael, Apache-2.0, 117 Hz. Everything before it
 #: was either the wrong speaker (en_free measures 248 Hz - female) or a
 #: research licence (lessac). See `tools/voice_audition.py` for the pack that
-#: was approved and `docs/samples/voice-audition-en.mp3` for the audio.
+#: was approved and the `voice-approval` release (`voice-audition-en.mp3`) for the audio.
 DEFAULT_EN_VOICE = "en_michael"
 
 

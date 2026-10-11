@@ -23,5 +23,10 @@
   "arabic": "وَإِذَا ٱلْمَوْءُۥدَةُ سُئِلَتْ",
   "urdu": "اور جب لڑکی سے جو زندہ دفنا دی گئی ہو پوچھا جائے گا",
   "english": "And when the girl [who was] buried alive is asked",
-  "word_count": 3
+  "word_count": 3,
+  "authenticity": {
+    "ok": true,
+    "verdict": "Qur'an - text agreed by 2 independent sources"
+  },
+  "release": "renders-2026-10-11"
 }

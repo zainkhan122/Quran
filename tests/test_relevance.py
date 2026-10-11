@@ -146,7 +146,9 @@ class TestUrduForSpeech(unittest.TestCase):
 
     def test_our_own_published_copy_normalises(self):
         """The real hadith body carries a footnote marker we must not voice."""
-        body = text_from_record("ibnmajah-224")
+        body = text_from_record("tirmidhi-2646")
+        self.assertIn("\u060e", body, "the published copy no longer carries a "
+                      "footnote marker, so this test has stopped testing anything")
         self.assertIsNotNone(body, "build record missing")
         out = normalize_for_speech(body)
         self.assertNotIn("\u060e", out)

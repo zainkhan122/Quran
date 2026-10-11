@@ -145,7 +145,7 @@ def check_pitch() -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Male-voice audition pack")
     ap.add_argument("--ref", default="quran:30:21", help="whose English to read")
-    ap.add_argument("--out", default="docs/samples/voice-audition-en.mp3")
+    ap.add_argument("--out", default="output/voice-audition-en.mp3")
     ap.add_argument("--voices", nargs="*", help="kokoro voice ids (default: shortlist)")
     ap.add_argument("--list", action="store_true", help="list male Kokoro voices")
     ap.add_argument("--check-pitch", action="store_true",

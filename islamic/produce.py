@@ -174,6 +174,15 @@ def main(argv: list[str] | None = None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     kind, _, rest = a.ref.partition(":")
 
+    # ---- 0. authenticity gate (islamic/verify.py) --------------------------
+    # Before anything is fetched or rendered, for Qur'an and hadith alike, and
+    # fail closed - there is no flag that skips it. A Qur'an ref must agree
+    # letter-for-letter across two independent sources; a hadith must be graded
+    # sahih or hasan with no grader dissenting.
+    from .verify import require
+    verdict = require(a.ref)
+    print(f"[produce] authenticity: PASS - {verdict.grade_line}")
+
     # ---- 1. verbatim text + citation -------------------------------------
     if kind == "quran":
         item = quran(rest, topic=topic_label_en)[0]
@@ -185,9 +194,6 @@ def main(argv: list[str] | None = None) -> int:
         item = hadith(kind, int(rest), topic=topic_label_en)
         words, rec, rec_secs = [], None, 0.0
         print(f"[produce] {item.source} ({item.grade})")
-        if item.grade and "See a scholar" in item.grade:
-            print("  [produce] note: this collection carries a range of grades — "
-                  "the citation says so on the frame")
 
     # ---- 2. narration ----------------------------------------------------
     from .english import for_display

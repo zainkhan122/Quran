@@ -1,28 +1,34 @@
 {
-  "generated_at": "2026-10-11T10:05:09+00:00",
+  "generated_at": "2026-10-11T10:30:55+00:00",
   "count": 3,
   "note": "Every quote is fetched verbatim from api.quran.com / api.alquran.cloud and the fawazahmed0 hadith-api and shown with its citation. Quranic Arabic is real recitation, never synthesised speech.",
   "items": [
     {
-      "file": "ibnmajah-224.mp4",
-      "poster": "posters/ibnmajah-224.jpg",
-      "reference": "ibnmajah:224",
+      "file": "tirmidhi-2646.mp4",
+      "poster": "posters/tirmidhi-2646.jpg",
+      "reference": "tirmidhi:2646",
       "kind": "hadith",
-      "grade": "See a scholar — this collection contains a range of grades",
-      "source": "Sunan Ibn Majah, Hadith 224",
+      "grade": "Sahih - graded by Ahmad Shakir, Al-Albani, Zubair Zai",
+      "source": "Jami at-Tirmidhi, Hadith 2646",
       "source_ar": "",
       "topic": "Knowledge — read, and ask for more",
       "topic_ur": "علم — پڑھو، اور مانگتے رہو",
       "reciter": "",
       "timings_source": "",
-      "arabic": "حَدَّثَنَا هِشَامُ بْنُ عَمَّارٍ، حَدَّثَنَا حَفْصُ بْنُ سُلَيْمَانَ، حَدَّثَنَا كَثِيرُ بْنُ شِنْظِيرٍ، عَنْ مُحَمَّدِ بْنِ سِيرِينَ، عَنْ أَنَسِ بْنِ مَالِكٍ، قَالَ قَالَ رَسُولُ اللَّهِ ـ صلى الله عليه وسلم ـ ‏ \"‏ طَلَبُ الْعِلْمِ فَرِيضَةٌ عَلَى كُلِّ مُسْلِمٍ وَوَاضِعُ الْعِلْمِ عِنْدَ غَيْرِ أَهْلِهِ كَمُقَلِّدِ الْخَنَازِيرِ الْجَوْهَرَ وَاللُّؤْلُؤَ وَالذَّهَبَ ‏\"‏ ‏.‏",
-      "urdu": "انس بن مالک رضی اللہ عنہ کہتے ہیں کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: علم دین حاصل کرنا ہر مسلمان پر فرض ہے، اور نااہلوں و ناقدروں کو علم سکھانے والا سور کے گلے میں جواہر، موتی اور سونے کا ہار پہنانے والے کی طرح ہے ۱؎۔",
-      "english": "It was narrated from Anas bin Malik that the Messenger of Allah (ﷺ) said:\"Seeking knowledge is a duty upon every Muslim, and he who imparts knowledge to those who do not deserve it, is like one who puts a necklace of jewels, pearls and gold around the neck of swines",
-      "built_at": "2026-10-11T10:04:50",
+      "arabic": "حَدَّثَنَا مَحْمُودُ بْنُ غَيْلاَنَ، حَدَّثَنَا أَبُو أُسَامَةَ، عَنِ الأَعْمَشِ، عَنْ أَبِي صَالِحٍ، عَنْ أَبِي هُرَيْرَةَ، قَالَ قَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏ \"‏ مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا سَهَّلَ اللَّهُ لَهُ طَرِيقًا إِلَى الْجَنَّةِ ‏\"‏ ‏.‏ قَالَ أَبُو عِيسَى هَذَا حَدِيثٌ حَسَنٌ ‏.‏",
+      "urdu": "ابوہریرہ رضی الله عنہ کہتے ہیں کہ رسول اللہ صلی اللہ علیہ وسلم نے فرمایا: ”جو علم حاصل کرنے کے ارادہ سے کہیں جائے، تو اللہ اس کے لیے جنت کے راستے کو آسان ( و ہموار ) کر دیتا ہے“ ۱؎۔ امام ترمذی کہتے ہیں: یہ حدیث حسن ہے۔",
+      "english": "Narrated Abu Hurairah:that the Messenger of Allah (ﷺ) said: \"Whoever takes a path upon which to obtain knowledge, Allah makes the path to Paradise easy for him",
+      "built_at": "2026-10-11T10:30:15",
+      "narration": {
+        "language": "English",
+        "voice": "en_michael",
+        "seconds": 12.12
+      },
+      "release": "renders-2026-10-11",
       "width": 1080,
       "height": 1920,
-      "seconds": 44.37,
-      "size_mb": 4.3
+      "seconds": 36.7,
+      "size_mb": 3.4
     },
     {
       "file": "quran-30-21.mp4",
@@ -40,6 +46,12 @@
       "urdu": "اور اسی کے نشانات (اور تصرفات) میں سے ہے کہ اُس نے تمہارے لئے تمہاری ہی جنس کی عورتیں پیدا کیں تاکہ اُن کی طرف (مائل ہوکر) آرام حاصل کرو اور تم میں محبت اور مہربانی پیدا کر دی جو لوگ غور کرتے ہیں اُن کے لئے ان باتوں میں (بہت سی) نشانیاں ہیں",
       "english": "And of His signs is that He created for you from yourselves mates that you may find tranquillity in them; and He placed between you affection and mercy. Indeed in that are signs for a people who give thought.",
       "built_at": "2026-10-11T10:03:52",
+      "narration": {
+        "language": "English",
+        "voice": "en_michael",
+        "seconds": 13.18
+      },
+      "release": "renders-2026-10-11",
       "width": 1080,
       "height": 1920,
       "seconds": 52.57,
@@ -61,6 +73,12 @@
       "urdu": "اور جب لڑکی سے جو زندہ دفنا دی گئی ہو پوچھا جائے گا",
       "english": "And when the girl [who was] buried alive is asked",
       "built_at": "2026-10-11T10:02:36",
+      "narration": {
+        "language": "English",
+        "voice": "en_michael",
+        "seconds": 2.69
+      },
+      "release": "renders-2026-10-11",
       "width": 1080,
       "height": 1920,
       "seconds": 11.2,

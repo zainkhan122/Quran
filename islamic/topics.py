@@ -64,7 +64,10 @@ TOPICS: dict[str, dict] = {
         },
         "requires": ["daughters", "worth"],
         "quran": ["42:49-50"],
-        "hadith": ["tirmidhi:1913", "tirmidhi:1912", "tirmidhi:1916"],
+        "hadith": ["tirmidhi:1913"],
+        # tirmidhi:1912 (Da'if by Shakir, al-Albani, Zai) and tirmidhi:1916
+        # (disputed: Da'if by Shakir and al-Albani, Hasan by two others) were
+        # removed 2026-10-11 by the authenticity gate. Disputed means refused.,
         "note": "81:8 previously sat here under the headline 'a blessing to be "
                 "cherished'. It is about the CRIME of burying infant daughters - the "
                 "subject matched, the claim did not. It now belongs to 'justice', and "
@@ -121,7 +124,13 @@ TOPICS: dict[str, dict] = {
         },
         "requires": ["knowledge"],
         "quran": ["96:1-5", "20:114", "39:9", "58:11"],
-        "hadith": ["ibnmajah:224"],
+        # ibnmajah:224 was here, and was PUBLISHED. It is graded Very Da'if by
+        # al-Albani, Abd al-Baqi and al-Arna'ut (the version with the "necklace
+        # around the neck of swine" addition). Removed 2026-10-11 when the
+        # authenticity gate (islamic/verify.py) started reading the grades.
+        # tirmidhi:2646 replaces it: Sahih per Ahmad Shakir and al-Albani, and
+        # Zubair Ali Zai notes it is also in Sahih Muslim.
+        "hadith": ["tirmidhi:2646"],
         "note": "96:1-5 is 'iqra'; 20:114 is the du'a for more knowledge. The previous "
                 "headline claimed 'a path that never ends', which none of these verses "
                 "say - the check cannot see a metaphor, so the headline was made literal.",

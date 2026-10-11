@@ -239,6 +239,24 @@ def clean_scratch() -> None:
     print("      (all of it is git-ignored and regenerated on demand)")
 
 
+def live_release_tags() -> set[str]:
+    """Every release tag the published manifest (or a published build record)
+    names. These hold the site's media and are never pruned."""
+    tags: set[str] = set()
+    for f in [ROOT / "web" / "video" / "manifest.json",
+              *sorted((ROOT / "web" / "video").glob("*.build.json"))]:
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for it in d.get("items", [d]):
+            if it.get("release"):
+                tags.add(it["release"])
+    for extra in ("voice-approval",):           # the approved audition pack
+        tags.add(extra)
+    return tags
+
+
 def cleanup_releases(keep: int, dry: bool) -> int:
     """Delete Release assets for all but the newest `keep` releases.
 
@@ -263,6 +281,11 @@ def cleanup_releases(keep: int, dry: bool) -> int:
 
     docs = " ".join(p.read_text(encoding="utf-8", errors="ignore")
                     for p in ROOT.glob("*.md"))
+    # Releases are now the ONLY copy of the published media - git carries the
+    # manifest and the citations, never the mp4s. So the first rule outranks
+    # "keep the newest N": a release the live manifest points at is the site,
+    # and deleting it would leave Pages serving cards with no video.
+    live = live_release_tags()
     rels.sort(key=lambda r: r.get("created_at") or "", reverse=True)
 
     freed = 0.0
@@ -270,6 +293,10 @@ def cleanup_releases(keep: int, dry: bool) -> int:
         tag = r.get("tag_name", "")
         assets = r.get("assets") or []
         size = sum(a.get("size", 0) for a in assets) / 1e6
+        if tag in live:
+            print(f"      LIVE   {tag:26s} {len(assets)} asset(s) {size:7.1f} MB"
+                  f"  - the manifest serves from it")
+            continue
         if i < keep:
             print(f"      keep   {tag:26s} {len(assets)} asset(s) {size:7.1f} MB")
             continue
