@@ -38,15 +38,53 @@ class TestVoiceCatalogue(unittest.TestCase):
 
     def test_urdu_and_english_defaults(self):
         self.assertEqual(default_voice("ur"), "fasih")
-        self.assertEqual(default_voice("en"), "en")
         self.assertEqual(VOICES[default_voice("ur")]["lang"], "ur")
         self.assertEqual(VOICES[default_voice("en")]["lang"], "en")
+
+    def test_the_default_english_voice_is_one_we_could_publish(self):
+        """English is now the DEFAULT narration language ('TTS will be in
+        English'), so the default voice has to be licence-clean. It was lessac,
+        which is a Blizzard research licence - fine for an A/B, not for the
+        channel. The prettier voice stays available explicitly.
+        """
+        self.assertFalse(VOICES[default_voice("en")].get("test_only", False),
+                         f"the English default is {default_voice('en')}, which is "
+                         f"flagged test_only - a published clip would ship it")
+        self.assertTrue(VOICES["en"]["test_only"],
+                        "lessac should stay available as the A/B voice")
 
     def test_the_research_licensed_voice_is_marked_test_only(self):
         """It sounds good and its licence is a Blizzard research licence.
         If this flag is ever dropped, a published clip can ship it."""
         self.assertTrue(VOICES["en"]["test_only"])
         self.assertFalse(VOICES.get("en_free", {}).get("test_only", False))
+
+    def test_the_voice_reads_english_by_default(self):
+        """'TTS will be in English, not in Urdu. Translation will be in Urdu and
+        English both while TTS will read English.'
+
+        Pinned at the CLI, because this is the flag a re-render forgets.
+        """
+        from islamic.produce import build_parser
+        d = build_parser().parse_args([])
+        self.assertEqual(d.narrate, "english",
+                         "the narration language defaulted back to Urdu")
+        self.assertTrue(d.english,
+                        "the card must carry both translations by default")
+        self.assertFalse(build_parser().parse_args(["--no-english"]).english,
+                         "--no-english no longer turns the caption off")
+        self.assertEqual(build_parser().parse_args(["--narrate", "urdu"]).narrate,
+                         "urdu", "Urdu narration must stay reachable")
+
+    def test_the_narrator_script_follows_the_language(self):
+        """English narration reads the ENGLISH translation, not the Urdu."""
+        self.assertIn("peace be upon him",
+                      english.normalize_for_speech_en(
+                          "The Messenger of Allah (\ufdfa) said: seek knowledge."),
+                      "an honorific ligature would be read as nothing, or worse, "
+                      "as garbage - it is spoken in full")
+        self.assertNotIn("\ufdfa", english.normalize_for_speech_en(
+            "The Messenger of Allah (\ufdfa) said: seek knowledge."))
 
     def test_the_shippable_english_voice_is_cc_by(self):
         self.assertIn("CC-BY", VOICES["en_free"]["licence"])

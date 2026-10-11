@@ -36,10 +36,55 @@ sessions (installed packages, `/tmp` and every process are lost; only files unde
 | 4 | **Voice, relevance, cadence.** Replace the CC-BY-NC voice; make the reviewed topic/ayah mismatch a machine check; measure what a 3-5/day library needs | `islamic/voice.py`, `islamic/urdu.py`, `islamic/relevance.py`, `tools/check_relevance.py`, `RESEARCH.md` | ✅ 2026-10-11 |
 | 4a | **Flow, and English.** The robotic pauses traced to our own per-line synthesis + flat glue; read the passage in one pass. Add an English voice path and a delivery-measurement instrument | `islamic/voice.py` `say_flow`, `islamic/english.py`, `tools/voice_metrics.py`, `--narrate` | ✅ 2026-10-11 |
 | 4b | **Design + robustness.** Ayah weight, stronger reading scrim, equal heading sizes, translation split into equal halves; art for all 10 topics; `tools/resume.sh`, `tools/cleanup.py` + weekly workflow, `RESUME.md` | `islamic/studio.py`, `tools/resume.sh`, `tools/cleanup.py`, `RESUME.md`, `tests/test_design.py` | ✅ 2026-10-11 |
+| 4c | **Compact header + the voice speaks English.** Owner: *"heading is taking almost 40% of space... it needs to be compact so that main content takes main space"* and *"TTS will be in English, not in Urdu. Translation will be in Urdu and English both while TTS will read English."* Header given a hard budget (measured 28.4% -> 12.8% worst case, body 47.7% -> 67.1%), type now placed by measured ink instead of a nominal line box, `--narrate` defaults to English with the CC-BY-4.0 voice, both translations always captioned, and a .notdef scan so the card cannot draw a missing glyph | `islamic/studio.py` (`_fit_topic`, `HEADER_BUDGET`), `islamic/english.py` (`for_display`), `islamic/produce.py`, `islamic/voice.py`, `tools/layout_report.py`, `tests/test_design.py`, `tests/test_voice.py` | ✅ 2026-10-11 |
 | 5 | **Coverage.** `parents` motif (8th of 8), grow `library.json` from the 34 validated refs, add `--daily N` rotation, render the whole library | clips for every topic | |
 | 5b | optional: regenerate `assets/motifs/` procedurally from the prompts in `tools/motifs.py`. The earlier geometric generator was retired in Phase 0 as unused duplication — the committed PNG set is the source of truth, so regeneration needs a spec first | | |
 | 6 | **Publishing.** Site polish; optional scheduled render + release; a receipt journal so nothing is ever re-uploaded | | |
 | 7 | optional: long-form cuts, landscape variants, an analytics loop (views → topic picks) | | |
+
+### Phase 4c outcome — the header is a label again, and the voice is English
+
+Two instructions, one measurement each.
+
+**"Heading is taking almost 40% of space."** It was true of the clip that was on
+screen: `quran:30:21` had a header plate **28.4%** of the frame and **32.9%** of
+the frame went by before the body began - on a phone, a third of the screen.
+`tools/layout_report.py` (new) prints the whole vertical budget per clip, and
+found two causes:
+
+* The Urdu heading reserved a line height of **2.6x** the font size. Nastaliq ink
+  actually measures **1.88x**, English **0.97x** - so nearly a third of the
+  header block was air. Type is now placed by the ink it really puts down
+  (`_ink_h`, `_mm_ink_offset`), not by the font's nominal box.
+* A headline that just missed the one-line threshold was re-set at the *largest*
+  size on two lines, roughly doubling the block. `_fit_topic` now searches for
+  the size that fits a **budget** (`HEADER_BUDGET`, 12.5% of the frame), prefers
+  fewer lines with a fixed penalty per extra line, and accepts one common size
+  for both languages.
+
+| clip | header before | header now | body before | body now |
+|---|---|---|---|---|
+| `quran:81:8` | 12.9% | **10.1%** | 63.2% | **69.8%** |
+| `quran:30:21` | 28.4% | **12.8%** | 47.7% | **67.1%** |
+| `ibnmajah:224` | 12.4% | **10.2%** | 61.0% | **67.1%** |
+
+The verse grew with it: 30:21's ayah went 96 -> 108px and its translation
+38 -> 48px (Urdu) / 44 -> 54px (English).
+
+**"TTS will be in English, not in Urdu."** `--narrate` now defaults to English
+and the card always carries both translations (`--no-english` is the escape
+hatch). The default English voice is `en_free` - LibriTTS-R, **CC BY 4.0** -
+not lessac, whose licence is a Blizzard research grant: English is now the
+voice of the channel, so the default had to be one we could publish. Lessac
+stays reachable as `--engine en` for an A/B and remains flagged `test_only`.
+
+The hadith gained narration as a result (its isnad had suppressed the Urdu
+voice), and the honouring of the Prophet is now spoken and drawn: U+FDFA has no
+glyph in DejaVu, so the card had been drawing an empty box mid-sentence. A
+`.notdef` scan over every field of every shipped reference now runs in `tests/`.
+
+Measured on the narration alone: **0.0 pauses/min** on all three clips, against
+the study's creator median of 1.5.
 
 ### Phase 1 outcome — both defects closed, with the measurement
 

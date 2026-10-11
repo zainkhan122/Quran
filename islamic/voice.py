@@ -83,7 +83,11 @@ VOICES: dict[str, dict] = {
                 "speaker": 60, "length_scale": 1.60},
 }
 DEFAULT_VOICE = "fasih"
-DEFAULT_EN_VOICE = "en"
+#: libritts_r, not lessac. English is now the default narration language, so the
+#: default English voice has to be one we could publish: CC BY 4.0. Lessac
+#: still sounds better and stays available as `--engine en` for an A/B, but it
+#: is marked test_only and must not become the voice of the channel by default.
+DEFAULT_EN_VOICE = "en_free"
 
 
 def voices_for(lang: str) -> list[str]:

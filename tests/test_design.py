@@ -62,8 +62,92 @@ class TestHeadings(unittest.TestCase):
 
     def test_headline_size_is_capped_so_it_stays_a_heading(self):
         _, _, meta, _ = studio.build_bases(self._comp(topic_en="Trade", topic_ur="تجارت"))
-        self.assertLessEqual(meta["heading_size"], int(1080 * 0.058),
+        self.assertLessEqual(meta["heading_size"], int(1080 * 0.050),
                              "the shared cap has drifted upward")
+
+
+@unittest.skipUnless(HAVE_FONTS, "fonts not fetched")
+class TestTheHeaderStaysCompact(unittest.TestCase):
+    """'Heading is taking almost 40% of space... it needs to be compact so that
+    main content takes main space.'
+
+    The measurement that prompted it: quran:30:21 had a header plate 28.4% of
+    the frame, and 32.9% of the frame before the body even started - on a phone
+    that reads as "the header is a third of the screen". The cause was that the
+    Urdu line height was reserved at 2.6x the font size while Nastaliq ink only
+    measures 1.88x, and that a headline which missed the one-line threshold was
+    re-set at the maximum size on two lines, doubling the block.
+
+    `HEADER_BUDGET` is now the control: the plate may not exceed that share of
+    the frame, and the body takes the rest.
+    """
+
+    HEADLINES = [
+        ("Justice — the wronged will be heard", "انصاف — مظلوم کی آواز سنی جائے گی"),
+        ("Marriage — love and mercy between spouses",
+         "نکاح — میاں بیوی کے درمیان محبت اور رحمت"),
+        ("Knowledge — read, and ask for more", "علم — پڑھو اور مزید مانگو"),
+    ]
+
+    def _comp(self, en, ur):
+        return studio.Comp(width=1080, height=1920, fps=30, topic_en=en, topic_ur=ur,
+                           reference_en="Qur'an 30:21", reference_ar="", arabic_words=[],
+                           body_arabic="", urdu="", english="", phase1=10.0,
+                           phase2=10.0, textures=False, topic_key="marriage")
+
+    def test_the_budget_is_a_budget(self):
+        self.assertLessEqual(studio.HEADER_BUDGET, 0.15,
+                             "the header budget has been raised; the verse is the "
+                             "content and the topic is a label")
+
+    def test_every_shipped_headline_fits_the_budget(self):
+        for en, ur in self.HEADLINES:
+            _, _, meta, _ = studio.build_bases(self._comp(en, ur))
+            g = meta["geometry"]
+            share = (g["header_bottom"] - g["header_top"]) / 1920
+            self.assertLessEqual(share, studio.HEADER_BUDGET + 0.015,
+                                 f"header is {share:.1%} of the frame for {en!r}")
+
+    def test_the_body_gets_the_majority_of_the_frame(self):
+        for en, ur in self.HEADLINES:
+            _, _, meta, _ = studio.build_bases(self._comp(en, ur))
+            g = meta["geometry"]
+            share = (g["body_bottom"] - g["body_top"]) / 1920
+            self.assertGreater(share, 0.60,
+                               f"the body only has {share:.1%} for {en!r}")
+
+    def test_the_verse_starts_high_in_the_frame(self):
+        """From the top edge to the first line of the verse is what the viewer
+        actually perceives as the header."""
+        for en, ur in self.HEADLINES:
+            _, _, meta, _ = studio.build_bases(self._comp(en, ur))
+            self.assertLess(meta["geometry"]["body_top"] / 1920, 0.22,
+                            f"body_top is {meta['geometry']['body_top']/1920:.1%} "
+                            f"down the frame for {en!r}")
+
+    def test_a_very_long_headline_still_fits(self):
+        """The guard is the budget, not the character count: a headline nobody
+        has written yet must shrink, not overflow."""
+        _, _, meta, _ = studio.build_bases(self._comp(
+            "Business and trade — honesty and fair dealing in every single "
+            "transaction you ever make with anyone",
+            "کاروبار — ہر لین دین میں ایمانداری اور انصاف"))
+        g = meta["geometry"]
+        self.assertLessEqual((g["header_bottom"] - g["header_top"]) / 1920,
+                             studio.HEADER_BUDGET + 0.02)
+        self.assertGreater(meta["heading_size"], 20, "it collapsed to nothing")
+
+    def test_ink_is_what_is_measured(self):
+        """The bug behind the tall header: Urdu laid out at 2.6x its size.
+
+        Napkin maths on the font itself, so a future pitch change that reserves
+        the old air fails here instead of on screen.
+        """
+        fnt = studio.f(studio.URDU, 60)
+        ink = studio._ink_h(fnt, "نکاح — میاں بیوی کے درمیان محبت اور رحمت")
+        self.assertLess(ink, 60 * 2.0,
+                        "Urdu ink claimed to be taller than 2x the size")
+        self.assertGreater(ink, 60 * 1.5, "Urdu ink claimed to be too short")
 
 
 @unittest.skipUnless(HAVE_FONTS, "fonts not fetched")
@@ -184,3 +268,63 @@ class TestEveryTopicHasItsOwnArt(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+@unittest.skipUnless(HAVE_FONTS, "fonts not fetched")
+class TestNoMissingGlyphs(unittest.TestCase):
+    """A card must never draw .notdef.
+
+    Found by looking at the rendered hadith: the honouring of the Prophet
+    (U+FDFA) came out as an empty box, because DejaVu has no glyph for it. The
+    scan is deliberately blunt - every character of every field the card draws,
+    through the font that will draw it - so the next unrenderable character is
+    caught here rather than by the owner on a phone.
+
+    `.notdef` is detected by rendering the character and comparing it with a
+    private-use codepoint, which is guaranteed to be missing: PIL happily
+    returns a .notdef bitmap, so asking the font whether it "has" a glyph
+    always answers yes.
+    """
+
+    def _fonts(self):
+        from PIL import ImageFont
+        return {"LATIN": ImageFont.truetype(str(studio.LATIN), 48),
+                "LATIN_B": ImageFont.truetype(str(studio.LATIN_B), 48),
+                "URDU": ImageFont.truetype(str(studio.URDU), 48),
+                "ARABIC": ImageFont.truetype(str(studio.ARABIC), 48),
+                "UI": ImageFont.truetype(str(studio.UI), 48)}
+
+    @staticmethod
+    def _renders(font, ch):
+        from PIL import Image, ImageDraw
+
+        def bmp(c):
+            im = Image.new("L", (90, 90), 0)
+            ImageDraw.Draw(im).text((12, 12), c, font=font, fill=255)
+            return im.tobytes()
+
+        return bmp(ch) != bmp("\ue000")
+
+    def test_the_shipped_library_has_no_unrenderable_characters(self):
+        import json
+        from islamic.english import for_display
+        from islamic.sources import load_items
+        clips = json.loads((ROOT / "library.json").read_text())["clips"]
+        fonts = self._fonts()
+        problems = []
+        for it in load_items([c["ref"] for c in clips]):
+            for field, key in ((for_display(it.english or ""), "LATIN"),
+                               (it.urdu or "", "URDU"),
+                               (it.arabic or "", "UI"),
+                               (it.source_ar or "", "UI")):
+                bad = sorted({c for c in field
+                              if c.strip() and not self._renders(fonts[key], c)})
+                if bad:
+                    problems.append(f"{it.reference} ({key}): {bad}")
+        self.assertEqual(problems, [], "the card would draw a .notdef box")
+
+    def test_the_honorific_is_spelled_out_for_the_card(self):
+        from islamic.english import for_display
+        shown = for_display("the Messenger of Allah (\ufdfa) said")
+        self.assertEqual(shown, "the Messenger of Allah (peace be upon him) said")
+        self.assertNotIn("\ufdfa", shown)

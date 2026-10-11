@@ -122,14 +122,20 @@ def build_audio(rec: Path | None, narration: Path | None, lead: float, phase1: f
     return _dur(out)
 
 
-def main(argv: list[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """The CLI, as its own function so `tests/` can assert the defaults.
+
+    Two of those defaults are owner instructions - the voice reads ENGLISH, and
+    the card carries both translations - and a default that quietly flips back
+    would only be noticed after a clip shipped.
+    """
     ap = argparse.ArgumentParser(description="Produce a professional video.")
     ap.add_argument("--ref", default="quran:30:21",
                     help="quran:S:A or collection:number")
     ap.add_argument("--topic", default="marriage", choices=list_topics())
     ap.add_argument("--out", default="output/video",
                     help="build folder; publish.py reads videos.json + sources.json here")
-    ap.add_argument("--narrate", default="urdu", choices=["urdu", "english"],
+    ap.add_argument("--narrate", default="english", choices=["english", "urdu"],
                     help="which language the VOICE speaks. The card shows both "
                          "either way; this only picks what is read aloud.")
     ap.add_argument("--engine", default=None,
@@ -141,9 +147,17 @@ def main(argv: list[str] | None = None) -> int:
                          "--narrate.")
     ap.add_argument("--no-textures", action="store_true")
     ap.add_argument("--landscape", action="store_true")
-    ap.add_argument("--english", action="store_true", help="caption the English too")
+    # The card carries BOTH translations and the voice reads the English - the
+    # owner's instruction. So the English caption is on by default and
+    # `--no-english` is the escape hatch for an Urdu-only card.
+    ap.add_argument("--english", action=argparse.BooleanOptionalAction,
+                    default=True, help="caption the English translation (default on)")
     ap.add_argument("--fps", type=int, default=30)
-    a = ap.parse_args(argv)
+    return ap
+
+
+def main(argv: list[str] | None = None) -> int:
+    a = build_parser().parse_args(argv)
 
     from .topics import get
     t = get(a.topic)
@@ -170,6 +184,7 @@ def main(argv: list[str] | None = None) -> int:
                   "the citation says so on the frame")
 
     # ---- 2. narration ----------------------------------------------------
+    from .english import for_display
     from .voice import default_voice
     lang = "en" if a.narrate == "english" else "ur"
     engine = a.engine or default_voice(lang)
@@ -220,7 +235,9 @@ def main(argv: list[str] | None = None) -> int:
         arabic_words=words,
         body_arabic=item.arabic if not words else "",
         urdu=item.urdu or "",
-        english=(item.english or "") if a.english else "",
+        # for_display, not the raw string: the card must not draw a missing
+        # glyph box where the honouring of the Prophet should be.
+        english=for_display(item.english or "") if a.english else "",
         phase1=phase1, phase2=phase2, lead=lead, tail=tail,
         textures=not a.no_textures,
         topic_key=a.topic,
@@ -237,6 +254,12 @@ def main(argv: list[str] | None = None) -> int:
                  "source_ar": item.source_ar, "grade": item.grade,
                  "topic": topic_label_en, "topic_ur": topic_label_ur,
                  "kind": item.kind,
+                 # Which voice read it, in the artefact's own record. English is
+                 # the default narration language now, and a build that does not
+                 # say so is a build nobody can check afterwards.
+                 "narration": {"language": "English" if lang == "en" else "Urdu",
+                               "voice": engine if nar_secs else "",
+                               "seconds": round(nar_secs, 2)},
                  "reciter": "Mishary Rashid Alafasy" if words else "",
                  "timings_source": "api.quran.com v4 audio.segments" if words else "",
                  "built_at": time.strftime("%Y-%m-%dT%H:%M:%S"),

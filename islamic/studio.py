@@ -390,82 +390,148 @@ def layout_words(words: list[dict], font_: ImageFont.FreeTypeFont, max_w: int,
     return rows[:max_rows] if len(rows) > max_rows else rows
 
 
-def _draw_topic(d: ImageDraw.ImageDraw, comp: Comp, w: int, y: int) -> tuple[int, int]:
-    """The on-screen topic: explanatory, bold, ONE line per language.
+#: The topic block may take at most this share of the frame height, and this is
+#: the control that keeps a heading a heading. Without a budget, "make it fit"
+#: simply grows the type until the header owns the card: measured on the
+#: published set, quran:30:21 had a 28.4% header and a body squeezed to 47.7%,
+#: and from the top edge of the frame to the first line of the verse was 38%.
+HEADER_BUDGET = 0.125
 
-    Two lines total - an English line and an Urdu line, BOTH AT THE SAME SIZE
-    (see the cap comment below). Each auto-shrinks until it fits a single line,
-    so a longer headline loses size, never structure.
+
+def _ink_h(font_: ImageFont.FreeTypeFont, text: str) -> int:
+    """Height of the pixels a string actually puts down.
+
+    Not the same as the font size, and the difference is the whole story for
+    Nastaliq: Urdu ink measures 1.88x the nominal size, English only 0.97x.
+    Laying out by the nominal size therefore reserves nearly twice the height
+    the Urdu needs.
+    """
+    bb = font_.getbbox(text)
+    return int(bb[3] - bb[1]) if bb else 0
+
+
+def _mm_ink_offset(font_: ImageFont.FreeTypeFont, text: str, **kw) -> float:
+    """How far an `anchor="mm"` draw puts the ink from the point it was given.
+
+    `mm` centres the font's LAYOUT box, and Nastaliq ships an enormous
+    ascent/descent, so the layout centre sits well above the letters. Measuring
+    the offset once per line lets every line be placed by its ink - which is
+    what the eye is aligning.
+    """
+    tmp = Image.new("L", (8, 600), 0)
+    ImageDraw.Draw(tmp).text((4, 300), text, font=font_, fill=255, anchor="mm", **kw)
+    bb = tmp.getbbox()
+    return ((bb[1] + bb[3]) / 2 - 300) if bb else 0.0
+
+
+def _fit_topic(comp: Comp, w: int, h: int) -> tuple:
+    """One type size for BOTH headlines, plus the lines each one needs.
+
+    The rule, in order of priority:
+
+    1. Never exceed `HEADER_BUDGET` of the frame. This is what the owner asked
+       for - the verse is the content, the topic is a label.
+    2. Within that budget, prefer the largest type.
+    3. Prefer fewer lines: an extra line costs a fixed penalty, so a headline
+       that only just wraps is not chosen over a slightly smaller one that
+       sits on one line. (Without this, ibnmajah:224 jumped to 43px and two
+       English lines to gain one pixel over 42px on one.)
+
+    Returns (size, lines_en, lines_ur, h_en, h_ur).
+    """
+    pad = int(w * 0.085)
+    inner = w - 2 * pad
+    cap = int(w * 0.050)
+    floor = int(w * 0.026)
+    penalty = int(w * 0.0074)
+    room = int(h * HEADER_BUDGET) - _TOP_PAD(w) - _BOT_PAD(w) - _H_GAP(w)
+
+    best = None
+    size = cap
+    while size >= floor:
+        fe, fu = f(LATIN_B, size), f(URDU, size)
+        le = wrap(comp.topic_en, fe, inner) if comp.topic_en else []
+        lu = wrap(comp.topic_ur, fu, inner) if comp.topic_ur else []
+        if len(le) <= 2 and len(lu) <= 2:
+            pe = int(size * 1.20)
+            ie = max((_ink_h(fe, ln) for ln in le), default=0)
+            iu = max((_ink_h(fu, ln) for ln in lu), default=0)
+            pu = max(int(size * 2.05), iu)     # Urdu lines must not touch
+            h_en = (len(le) - 1) * pe + ie
+            h_ur = (len(lu) - 1) * pu + iu
+            if h_en + h_ur <= room:
+                score = size - penalty * max(len(le) + len(lu) - 2, 0)
+                if best is None or score > best[0]:
+                    best = (score, size, le, lu, h_en, h_ur)
+        size -= 2
+    if best is None:
+        # A headline far longer than any we ship. Shrink to the floor and let it
+        # wrap rather than overflow the frame.
+        fe, fu = f(LATIN_B, floor), f(URDU, floor)
+        le = wrap(comp.topic_en, fe, inner) if comp.topic_en else []
+        lu = wrap(comp.topic_ur, fu, inner) if comp.topic_ur else []
+        h_en = len(le) * int(floor * 1.20)
+        h_ur = len(lu) * int(floor * 2.05)
+        return floor, le, lu, h_en, h_ur
+    _, size, le, lu, h_en, h_ur = best
+    return size, le, lu, h_en, h_ur
+
+
+def _TOP_PAD(w: int) -> int:
+    return max(int(w * 0.013), 10)
+
+
+def _BOT_PAD(w: int) -> int:
+    return max(int(w * 0.010), 8)
+
+
+def _H_GAP(w: int) -> int:
+    return max(int(w * 0.013), 10)
+
+
+def _draw_topic(d: ImageDraw.ImageDraw, comp: Comp, w: int, h: int,
+                y: int) -> tuple[int, int]:
+    """The on-screen topic: bold, explanatory, equal-size, and COMPACT.
+
+    One size for both languages (that requirement is unchanged), one or two
+    lines each, and never more than `HEADER_BUDGET` of the frame - see
+    `_fit_topic` for how the size is chosen.
 
     Returns (y just past the block, the size both lines were set at).
     """
     pad = int(w * 0.085)
-    inner = w - 2 * pad
+    size, lines_en, lines_ur, h_en, h_ur = _fit_topic(comp, w, h)
+    fe, fu = f(LATIN_B, size), f(URDU, size)
 
-    # BOTH HEADLINES AT ONE SIZE. They used to carry different caps (0.053 for
-    # English, 0.070 for Urdu), which produced a large Urdu line over a small
-    # English one and read as a typo. Each is fitted independently, then both
-    # are re-set at the smaller of the two results - the largest size at which
-    # *both* still fit on one line.
-    cap = int(w * 0.058)
-    floor = int(w * 0.030)
-    # ONE LINE FIRST, two only if one would be unreadably small.
-    #
-    # Allowing two lines by default produced a one-word orphan ("رحمت" alone on
-    # the second line) which looked worse than the size it bought. So: find the
-    # largest size at which each side sits on ONE line, take the smaller of the
-    # two, and accept it if it clears `floor` comfortably. Only a genuinely long
-    # headline - one that would fall below that - is allowed a second line, and
-    # then the wrap is BALANCED rather than greedy so it cannot orphan.
-    one_en, _ = fit_lines(comp.topic_en, LATIN_B, inner, 1, int(w * 0.10), 1.16,
-                          hi=cap, lo=floor) if comp.topic_en else (f(LATIN_B, cap), [])
-    one_ur = f(URDU, floor)
-    if comp.topic_ur:
-        one_ur, _ = fit_lines(comp.topic_ur, URDU, inner, 1, int(w * 0.16), 2.6,
-                              hi=cap, lo=floor)
-    target = min(one_en.size, one_ur.size) if comp.topic_ur else one_en.size
-    min_one = int(w * 0.038)          # smallest single-line size we will accept
-
-    if target >= min_one:
-        common = target
-        fe, fu = f(LATIN_B, common), f(URDU, common)
-        lines_en = wrap(comp.topic_en, fe, inner) if comp.topic_en else []
-        lines_ur = wrap(comp.topic_ur, fu, inner) if comp.topic_ur else []
-    else:
-        two_en, _ = fit_lines(comp.topic_en, LATIN_B, inner, 2, int(w * 0.20), 1.16,
-                              hi=cap, lo=floor) if comp.topic_en else (f(LATIN_B, cap), [])
-        two_ur = f(URDU, floor)
-        if comp.topic_ur:
-            two_ur, _ = fit_lines(comp.topic_ur, URDU, inner, 2, int(w * 0.32), 2.6,
-                                  hi=cap, lo=floor)
-        common = min(two_en.size, two_ur.size) if comp.topic_ur else two_en.size
-        fe, fu = f(LATIN_B, common), f(URDU, common)
-        lines_en = balanced_wrap(comp.topic_en, fe, inner, 2) if comp.topic_en else []
-        lines_ur = balanced_wrap(comp.topic_ur, fu, inner, 2) if comp.topic_ur else []
-
-    top_pad = int(w * 0.020)
-    gap = int(w * 0.022)
-    h_en = int(fe.size * 1.16) * max(len(lines_en), 1)
-    h_ur = int(fu.size * 2.6) * len(lines_ur) if lines_ur else 0
-    block_h = top_pad + h_en + gap + h_ur + int(w * 0.016)
+    top_pad, gap, bot_pad = _TOP_PAD(w), _H_GAP(w), _BOT_PAD(w)
+    block_h = top_pad + h_en + gap + h_ur + bot_pad
     plate = [pad - 24, y - top_pad, w - pad + 24, y + block_h]
+    d._studio_plate = (int(plate[1]), int(plate[3]))     # read back by build_bases
     d.rounded_rectangle(plate, radius=22, fill=(0, 0, 0, 78),
                         outline=(*GOLD_DIM, 150), width=2)
-    # a thin gold rule under the English line reads as "title, then subtitle"
-    yr = y + h_en + gap // 2
-    # (the rule sits between the two languages, not between two lines of one)
+
+    # A thin gold rule between the languages reads as "title, then subtitle".
+    yr = int(y + top_pad + h_en + gap / 2)
     d.line([(w // 2 - int(w * 0.16), yr), (w // 2 + int(w * 0.16), yr)],
            fill=(*GOLD_DIM, 170), width=2)
 
+    # Place every line by its own ink centre. `_mm_ink_offset` is what makes
+    # that possible: the anchor alone would sit the Urdu well above its letters.
+    pitch_en = int(size * 1.20)
     cy = y + top_pad
-    for i, ln in enumerate(lines_en):
-        d.text((w // 2, cy + i * fe.size * 1.16 + fe.size * 0.58), ln, font=fe,
+    for ln in lines_en:
+        ink = _ink_h(fe, ln)
+        d.text((w // 2, cy + ink / 2 - _mm_ink_offset(fe, ln)), ln, font=fe,
                fill=GOLD_HI, anchor="mm")
-    cy += h_en + gap
-    for i, ln in enumerate(lines_ur):
-        d.text((w // 2, cy + i * fu.size * 2.6 + fu.size * 1.3), ln, font=fu,
-               fill=GOLD, anchor="mm", **RTL)
-    return int(plate[3]), common
+        cy += pitch_en
+    cy = y + top_pad + h_en + gap
+    ink_ur = max((_ink_h(fu, ln) for ln in lines_ur), default=0)
+    pitch_ur = max(int(size * 2.05), ink_ur)
+    for ln in lines_ur:
+        d.text((w // 2, cy + ink_ur / 2 - _mm_ink_offset(fu, ln, **RTL)), ln,
+               font=fu, fill=GOLD, anchor="mm", **RTL)
+        cy += pitch_ur
+    return int(plate[3]), size
 
 
 def _draw_reference(d: ImageDraw.ImageDraw, comp: Comp, w: int, h: int) -> None:
@@ -505,12 +571,14 @@ def build_bases(comp: Comp) -> tuple[Image.Image, Image.Image, dict, Image.Image
     pad = int(w * 0.085)
     inner = w - 2 * pad
 
-    top_y = int(h * 0.062)
+    top_y = int(h * 0.040)
     probe = ImageDraw.Draw(bg, "RGBA")
-    header_bottom, heading_size = _draw_topic(probe, comp, w, top_y)
+    header_bottom, heading_size = _draw_topic(probe, comp, w, h, top_y)
     _draw_reference(probe, comp, w, h)
 
-    body_top = header_bottom + int(h * 0.045)
+    # The gap between the header plate and the body used to be 4.5% of the
+    # frame, which the eye reads as part of the header. It is air, not content.
+    body_top = header_bottom + int(h * 0.026)
     ref_h = int(w * 0.0335 * 3.15) + (int(w * 0.0235 * 2.0)
                                       if (comp.grade or "").strip() else 0)
     body_bottom = h - int(h * 0.055) - ref_h - int(h * 0.030)
@@ -518,7 +586,14 @@ def build_bases(comp: Comp) -> tuple[Image.Image, Image.Image, dict, Image.Image
     _body_scrim(bg, body_top, body_bottom, pad)
 
     meta: dict = {"ar_stroke": max(int(w * AR_STROKE), 1),
-                 "heading_size": heading_size}
+                 "heading_size": heading_size,
+                 # The whole vertical budget in one place. Every "is the
+                 # heading too big?" question is answered here rather than by
+                 # guessing from a frame, and tests/test_design.py pins it.
+                 "geometry": {"header_top": int(getattr(probe, "_studio_plate",
+                                                        (0, 0))[0]),
+                              "header_bottom": header_bottom,
+                              "body_top": body_top, "body_bottom": body_bottom}}
 
     # ---- phase 1 base -----------------------------------------------------
     # Two modes, one renderer:
@@ -640,13 +715,13 @@ def build_bases(comp: Comp) -> tuple[Image.Image, Image.Image, dict, Image.Image
         return fnt.size
 
     if comp.urdu:
-        meta["urdu_size"] = _block(comp.urdu, URDU, top_half, half_h, 2.42,
+        meta["urdu_size"] = _block(comp.urdu, URDU, top_half, half_h, 2.10,
                                    lo=22, max_lines=8, fill=IVORY, anchor="mm")
     if comp.english:
         yrule = top_half + half_h + rule // 2
         d2.line([(w // 2 - int(w * 0.13), yrule), (w // 2 + int(w * 0.13), yrule)],
                 fill=(*GOLD_DIM, 190), width=2)
-        meta["english_size"] = _block(comp.english, LATIN, bot_half, half_h, 1.5,
+        meta["english_size"] = _block(comp.english, LATIN, bot_half, half_h, 1.34,
                                       lo=18, max_lines=8, fill=MUTED, anchor="ma")
     bb2 = layer2.getbbox()
     if bb2:
