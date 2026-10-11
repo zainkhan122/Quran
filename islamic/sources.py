@@ -33,7 +33,15 @@ from pathlib import Path
 QURAN_API = "https://api.alquran.cloud/v1"
 HADITH_CDN = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions"
 
-CACHE = Path(__file__).resolve().parent.parent / ".content-cache"
+#: Network cache. It is deliberately OUTSIDE the repo.
+#:
+#: It used to be `.content-cache/` in the project root, and it grew to 32 MB of
+#: fetched hadith editions and verse payloads. The workspace snapshot excludes
+#: `.cache/` but not `.content-cache/`, so that 32 MB was charged against the
+#: project's 128 MB budget on every single session - and it is the reason a
+#: snapshot once came up over budget and dropped 22 files, including the git
+#: objects for a finished commit. A cache belongs in a cache directory.
+CACHE = Path.home() / ".cache" / "islamic-studio"
 
 # Hadith collections this pipeline trusts enough to put on a video, with the
 # grade the collection itself carries. Anything absent from this map is refused.
