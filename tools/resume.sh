@@ -12,6 +12,13 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# The workspace snapshot restores file contents but not modes, so every
+# executable comes back 0644 and `tools/cloud.sh ...` fails with "Permission
+# denied" for no visible reason. Git records the right mode; re-apply it.
+git ls-files -s | awk '$1 == "100755" {print $4}' | xargs -r chmod +x
+# .git/config is excluded from snapshots as a credential path; restore it.
+git config user.name >/dev/null 2>&1 || cp setup/git-config.template .git/config
+
 QUICK=0
 [[ "${1:-}" == "--quick" ]] && QUICK=1
 
