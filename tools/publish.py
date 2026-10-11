@@ -1,15 +1,22 @@
 """
 Publish built videos to the web folder.
 
-Build folders are the only source of truth: each one holds
+A clip is discovered by its own files, so no shared index has to be merged:
 
-    videos.json    { "<filename>.mp4": "<reference>" }
-    sources.json   the verbatim text + citation for every reference built
+    <slug>.mp4          the render
+    <slug>.build.json   everything the manifest needs (reference, citation,
+                        topic, grade, the verbatim text)
 
-This tool walks those, copies the videos into web/video/, extracts a poster
-frame for each, and writes web/video/manifest.json which the site renders from.
-Stale videos are pruned, so the site can never show a card pointing at a file
-that is no longer there.
+`videos.json` and `sources.json` are still read when present, as a fallback for
+build folders made before the build record existed. This matters for the cloud
+workflow: five runners render five clips in parallel and upload only their own
+two files, so there is no single cumulative index to write and nothing to
+reconcile.
+
+This tool copies the videos into web/video/, extracts a poster frame for each,
+and writes web/video/manifest.json which the site renders from. Stale videos are
+pruned, so the site can never show a card pointing at a file that is no longer
+there.
 
     python tools/publish.py            # publish everything built
     python tools/publish.py --prune-posters
@@ -56,32 +63,43 @@ def poster(mp4: Path, dest: Path) -> None:
                     "-frames:v", "1", "-q:v", "4", str(dest)], check=False)
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--prune-posters", action="store_true")
-    a = ap.parse_args()
-    WEB.mkdir(parents=True, exist_ok=True)
-    (WEB / "posters").mkdir(exist_ok=True)
+def _read_json(p: Path, default):
+    if not p.exists():
+        return default
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        print(f"  ! {p}: unreadable ({e})", file=sys.stderr)
+        return default
 
+
+def _file_stamp(p: Path) -> float:
+    try:
+        return p.stat().st_mtime
+    except OSError:
+        return -1.0
+
+
+def collect(build_dirs: list[str]) -> list[dict]:
+    """Every publishable clip, each described by its own build record."""
     items: list[dict] = []
     seen: set[str] = set()
 
-    for bdir in BUILD_DIRS:
+    for bdir in build_dirs:
         d = ROOT / bdir
-        idx_p, src_p = d / "videos.json", d / "sources.json"
-        if not idx_p.exists():
+        if not d.exists():
             continue
-        try:
-            index = json.loads(idx_p.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as e:
-            print(f"  ! {idx_p}: unreadable ({e})", file=sys.stderr)
-            continue
-        sources = {}
-        if src_p.exists():
-            for s in json.loads(src_p.read_text(encoding="utf-8")):
-                sources[s.get("reference")] = s
 
-        for filename, ref in sorted(index.items()):
+        index = _read_json(d / "videos.json", {})
+        sources = {s.get("reference"): s
+                   for s in _read_json(d / "sources.json", [])}
+
+        # Union of "listed in the index" and "an mp4 sitting here": the second
+        # half is what makes a lone artifact from a CI runner publishable.
+        names = {n for n in index if (d / n).exists()}
+        names |= {m.name for m in d.glob("*.mp4") if m.stat().st_size > 0}
+
+        for filename in sorted(names):
             src = d / filename
             if not src.exists():
                 print(f"  ! {bdir}/{filename}: listed but missing, skipped")
@@ -90,41 +108,87 @@ def main() -> int:
                 print(f"  ! {filename}: duplicate across build dirs, keeping first")
                 continue
             seen.add(filename)
-            meta = probe(src)
-            s = sources.get(ref, {})
-            build = {}
-            bjson = d / filename.replace(".mp4", ".build.json")
-            if bjson.exists():
-                try:
-                    build = json.loads(bjson.read_text(encoding="utf-8"))
-                except json.JSONDecodeError:
-                    build = {}
 
-            if src.stat().st_mtime != (WEB / filename).stat().st_mtime if (WEB / filename).exists() else True:
-                shutil.copy2(src, WEB / filename)
+            entry = index.get(filename) or {}
+            ref = entry.get("reference") if isinstance(entry, dict) else entry
+            build = _read_json(d / filename.replace(".mp4", ".build.json"), {})
+            ref = build.get("reference") or ref or ""
+            s = sources.get(ref, {})
+
+            if not ref:
+                print(f"  ! {filename}: no reference in any record, skipped")
+                continue
+
+            def pick(field: str, default=""):
+                return build.get(field) or s.get(field) or default
+
+            kind = pick("kind") or ref.split(":")[0]
+            meta = probe(src)
+
+            dest = WEB / filename
+            if not dest.exists() or _file_stamp(src) != _file_stamp(dest):
+                shutil.copy2(src, dest)
             poster(src, WEB / "posters" / filename.replace(".mp4", ".jpg"))
 
             items.append({
                 "file": filename,
                 "poster": f"posters/{filename.replace('.mp4', '.jpg')}",
                 "reference": ref,
-                "kind": s.get("kind", build.get("kind", "")),
-                "source": s.get("source", build.get("source", "")),
-                "source_ar": s.get("source_ar", build.get("source_ar", "")),
-                "grade": (s.get("grade", build.get("grade", ""))
-                          if (s.get("kind", build.get("kind", "")) == "hadith") else ""),
-                "topic": build.get("topic", "") or s.get("topic", ""),
-                "topic_ur": build.get("topic_ur", ""),
-                "reciter": build.get("reciter", ""),
-                "arabic": s.get("arabic", build.get("arabic", "")),
-                "urdu": s.get("urdu", build.get("urdu", "")),
-                "english": s.get("english", build.get("english", "")),
-                "collected_at": s.get("collected_at", ""),
+                "kind": kind,
+                # A grade line belongs on a hadith. "Quran" under "Qur'an 30:21"
+                # is noise, and it was reaching the frame once.
+                "grade": pick("grade") if kind == "hadith" else "",
+                "source": pick("source"),
+                "source_ar": pick("source_ar"),
+                "topic": pick("topic"),
+                "topic_ur": pick("topic_ur"),
+                "reciter": pick("reciter"),
+                "timings_source": pick("timings_source"),
+                "arabic": pick("arabic"),
+                "urdu": pick("urdu"),
+                "english": pick("english"),
+                "built_at": pick("built_at") or s.get("collected_at", ""),
                 **meta,
             })
+    return items
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--prune-posters", action="store_true")
+    ap.add_argument("--from", dest="dirs", action="append", default=None,
+                    help="build folder to read (repeatable); default output/video, output/studio")
+    ap.add_argument("--exact", action="store_true",
+                    help="make the site match the build folders exactly, dropping "
+                         "anything already published that this run did not build. "
+                         "The default is deliberately NOT this: rendering a subset "
+                         "(the cloud workflow's `only` input) must not delete the "
+                         "rest of the library from the site.")
+    a = ap.parse_args()
+    WEB.mkdir(parents=True, exist_ok=True)
+    (WEB / "posters").mkdir(exist_ok=True)
+
+    items = collect(a.dirs or BUILD_DIRS)
+    freshly_built = {i["file"] for i in items}
+
+    # Carry forward what is already live but was not rebuilt in this run.
+    if not a.exact:
+        previous = _read_json(WEB / "manifest.json", {})
+        for old in previous.get("items", []):
+            name = old.get("file", "")
+            if not name or name in freshly_built:
+                continue
+            live = WEB / name
+            if not live.exists():
+                # Deleted from the site folder: that is how a clip is retired.
+                continue
+            kept = dict(old)
+            kept.update(probe(live))
+            items.append(kept)
+            print(f"  kept {name} (published earlier, not rebuilt in this run)")
 
     # newest first by mtime, so a fresh build lands at the top of the site
-    items.sort(key=lambda i: (WEB / i["file"]).stat().st_mtime, reverse=True)
+    items.sort(key=lambda i: _file_stamp(WEB / i["file"]), reverse=True)
 
     manifest = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -143,7 +207,7 @@ def main() -> int:
     for p in WEB.glob("*.mp4"):
         if p.name not in keep:
             p.unlink()
-            print(f"  pruned {p.name}")
+            print(f"  pruned {p.name} (not built and not in the previous manifest)")
     if a.prune_posters:
         keep_p = {Path(i["poster"]).name for i in items}
         for p in (WEB / "posters").glob("*.jpg"):

@@ -1,0 +1,25 @@
+{
+  "_note": "The clip plan: which verbatim reference becomes which topic's video, and therefore what a cloud render produces. Edit this file to change the set; the workflow reads it and nothing else. REFERENCES ONLY — no sacred text, no translation and no commentary is ever stored here.",
+  "_fields": {
+    "slug": "filename stem of the output; must equal the reference with ':' replaced by '-'",
+    "ref": "source:locator, exactly as islamic/sources.py parses it",
+    "topic": "must be a key in islamic/topics.py (it selects the headline and the motif)"
+  },
+  "clips": [
+    {
+      "slug": "quran-81-8",
+      "ref": "quran:81:8",
+      "topic": "daughters"
+    },
+    {
+      "slug": "quran-30-21",
+      "ref": "quran:30:21",
+      "topic": "marriage"
+    },
+    {
+      "slug": "ibnmajah-224",
+      "ref": "ibnmajah:224",
+      "topic": "knowledge"
+    }
+  ]
+}

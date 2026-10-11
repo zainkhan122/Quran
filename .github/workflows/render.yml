@@ -1,0 +1,186 @@
+# Cloud render — free GitHub runners instead of the 2 GB sandbox.
+#
+# On a PUBLIC repo, GitHub-hosted ubuntu-latest is 4 vCPU / 16 GB / 14 GB SSD with
+# unlimited free minutes. That is 8x the RAM and several times the CPU of the
+# workspace sandbox, and it removes the ceiling that forced every memory
+# workaround in islamic/. Renders that need the whole 2 GB locally run here with
+# room to spare.
+#
+# Shape of the run:
+#   plan    read library.json -> a matrix of {slug, ref, topic}
+#   render  one runner per clip, up to 5 in parallel; each renders, is gated by
+#           tools/check_video.py, and uploads ONLY its own mp4 + build record
+#   publish one runner collects the artifacts, writes the site, uploads the
+#           Release, and commits web/
+#
+# No secrets are needed. The automatic GITHUB_TOKEN covers the release and the
+# commit; nothing here requires a personal access token, and none may be added.
+#
+#   gh workflow run render.yml -f only="quran-81-8"
+#   gh workflow run render.yml                       # everything in library.json
+
+name: render
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Subset to render: slugs or refs, space/comma separated. Empty = every clip in library.json.'
+        required: false
+        default: ''
+      tag:
+        description: 'Release tag for the masters (default renders-YYYY-MM-DD)'
+        required: false
+        default: ''
+      sync_site:
+        description: 'Commit the rendered set into web/ so Pages serves it'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  # Never two renders at once: both would commit web/ and race each other.
+  group: render
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    outputs:
+      clips: ${{ steps.p.outputs.clips }}
+      tag: ${{ steps.p.outputs.tag }}
+      count: ${{ steps.p.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: p
+        name: Read library.json
+        env:
+          ONLY: ${{ inputs.only }}
+          TAG: ${{ inputs.tag }}
+        run: python3 tools/plan_render.py --only "$ONLY" --tag "$TAG" --github-output >> "$GITHUB_OUTPUT"
+
+  render:
+    name: render ${{ matrix.clip.slug }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        clip: ${{ fromJSON(needs.plan.outputs.clips) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # pip wheels and the Urdu voice model are the two big downloads. Keyed on
+      # the files that pin them, so an unrelated change does not refetch ~1 GB.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/huggingface
+          key: voice-${{ runner.os }}-${{ hashFiles('setup.sh', 'naat/tts.py') }}
+          restore-keys: voice-${{ runner.os }}-
+
+      - name: Toolchain
+        run: bash setup.sh
+
+      - name: Render ${{ matrix.clip.ref }}
+        run: |
+          python3 -m islamic.produce \
+            --ref "${{ matrix.clip.ref }}" \
+            --topic "${{ matrix.clip.topic }}" \
+            --out output/video
+
+      - name: Gate the clip
+        run: |
+          python3 tools/check_video.py \
+            "output/video/${{ matrix.clip.slug }}.mp4" \
+            --build-json "output/video/${{ matrix.clip.slug }}.build.json" \
+            --min-seconds 6 \
+            ${{ matrix.clip.require_audio && '--require-audio' || '' }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: clip-${{ matrix.clip.slug }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            output/video/${{ matrix.clip.slug }}.mp4
+            output/video/${{ matrix.clip.slug }}.build.json
+
+  publish:
+    name: publish
+    needs: [plan, render]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # Only the two files each runner produced. There is deliberately no shared
+      # cumulative index to merge: publish.py describes every clip from its own
+      # build record.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: clip-*
+          merge-multiple: true
+          path: output/video
+
+      - name: Report what arrived
+        run: ls -la output/video
+
+      - name: Build the site
+        # Not --exact: rendering a subset must leave the rest of the library on
+        # the site rather than pruning it.
+        run: python3 tools/publish.py
+
+      - name: Verify the site
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, sys
+          m = json.loads(pathlib.Path("web/video/manifest.json").read_text(encoding="utf-8"))
+          n = m["count"]
+          print(f"manifest lists {n} clip(s)")
+          bad = [i["file"] for i in m["items"]
+                 if not (pathlib.Path("web/video") / i["file"]).exists()]
+          if bad:
+              sys.exit(f"manifest points at missing files: {bad}")
+          if n == 0:
+              sys.exit("manifest is empty")
+          PY
+
+      - name: Release the masters
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" >/dev/null 2>&1 \
+            || gh release create "$TAG" --title "$TAG" \
+                 --notes "Cloud renders from library.json. Masters for the web set."
+          gh release upload "$TAG" output/video/*.mp4 output/video/*.build.json \
+            web/video/posters/*.jpg --clobber
+
+      - name: Commit the site
+        if: ${{ inputs.sync_site }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/video
+          if git diff --cached --quiet; then
+            echo "site already matches the render — nothing to commit"
+          else
+            git commit -m "Cloud render: refresh web/video (${{ needs.plan.outputs.count }} clip(s), tag ${{ needs.plan.outputs.tag }})"
+            # Push to the branch this run was dispatched on, explicitly: a
+            # detached HEAD must not be able to push nowhere and report success.
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
