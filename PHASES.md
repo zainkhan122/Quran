@@ -16,9 +16,12 @@ sessions (installed packages, `/tmp` and every process are lost; only files unde
    empty stderr and a video silently ships truncated or mute.
 3. **Keep the transcript small.** State lives in the repo, not the conversation
    (see *Evidence rules*). Retrieve with a script instead of reading whole files.
-4. **End the session with:** workspace clean, `PHASES.md` status + phase log
+4. **Run the suite before committing.** `python3 -m unittest discover -s tests`
+   — 27 tests, ~10 s, no dependencies. The gates protect publication, so a change
+   to them must be proven, not assumed.
+5. **End the session with:** workspace clean, `PHASES.md` status + phase log
    updated, `STATE.md` refreshed, everything committed and pushed.
-5. **Never leave a half-edited file.** Re-run the file after each patch; a
+6. **Never leave a half-edited file.** Re-run the file after each patch; a
    partial edit once left a `NameError` in the manifest builder that only surfaced
    in the next session.
 
@@ -28,8 +31,8 @@ sessions (installed packages, `/tmp` and every process are lost; only files unde
 |---|---|---|---|
 | 0 | **Foundations.** One renderer (two existed), clean tree, phased plan, state capsule, repo pushed | this file, `STATE.md`, single-source renderer, clean tree | ✅ 2026-10-11 |
 | 1 | **Make the studio render at all.** Fix the ffmpeg tail-hang; move Urdu TTS into a short-lived process; render the three clips | 3 MP4s + posters + `manifest.json` | ✅ 2026-10-11 |
-| 2 | **Cloud render.** Free GitHub runners (4 vCPU / 16 GB) instead of the 2 GB sandbox; outputs to a Release; no secrets needed | `.github/workflows/render.yml` | 🔨 built + rehearsed; awaiting a token to push and dispatch |
-| 3 | **QA gates.** Machine checks that must pass before a video reaches `web/video/` | `tools/qa.py` + gate wired into publish | |
+| 2 | **Cloud render.** Free GitHub runners (4 vCPU / 16 GB) instead of the 2 GB sandbox; outputs to a Release; no secrets needed | `.github/workflows/render.yml` | 🔨 built + rehearsed; needs a token to push and dispatch |
+| 3 | **QA gates.** Machine checks that must pass before a video reaches `web/video/` | `tools/check_video.py` (file + correctness gates), wired into `tools/publish.py`, with `tests/` | ✅ 2026-10-11 |
 | 4 | **Coverage.** `parents` motif (8th of 8), verify the seeded topic references against a human-checked list, render the 8-topic library | clips for every topic | |
 | 4b | optional: regenerate `assets/motifs/` procedurally from the prompts in `tools/motifs.py`. The earlier geometric generator was retired in Phase 0 as unused duplication — the committed PNG set is the source of truth, so regeneration needs a spec first | | |
 | 5 | **Publishing.** Site polish; optional scheduled render + release; a receipt journal so nothing is ever re-uploaded | | |
@@ -146,6 +149,40 @@ The correctness rules are the product; this is the production half of them.
 * **Verify by re-running the file**, not by reading the diff.
 
 ## Phase log
+
+* **Phase 3 ✅ (2026-10-11)** — Publication gates, and the tests that keep them honest.
+  * `tools/check_video.py` now enforces two kinds of check. **File checks**: container,
+    codec, pixel format, 1080×1920, duration floor/ceiling, agreement with the build
+    record, integrated loudness. **Correctness checks**, read from the build record:
+    a citation exists; the sacred text is present; a Qur'an clip names its reciter and
+    the source of its timings; the collection is on `TRUSTED_COLLECTIONS`; a hadith
+    carries a grade line; the timed word count matches the words on the clip.
+  * `tools/publish.py` gates every clip before copying it. A clip that fails is held
+    back with its reason, the run exits non-zero, and — the part that matters — the
+    previously published version stands rather than being deleted or overwritten.
+    Verified: a clip with its `reciter` stripped is blocked, and the live copy keeps
+    its own record.
+  * `tests/test_gates.py`: 27 tests, standard library only, ~10 s. Runs on a laptop,
+    in this sandbox and on a runner. `render.yml` runs it before spending a runner
+    on a render, so a broken gate stops the run instead of passing everything.
+
+  Two defects were found by actually using the new gate, and both are worth keeping:
+
+  1. **The gate was wrong, not the renderer.** Its first run reported that a clip
+     showed 21 words against 20 timed ones. The Arabic is 21 *whitespace tokens*
+     because the Uthmani edition separates waqf marks (`ۚ`) and, in other verses,
+     the verse-number marker. Counting was fixed to "a token containing a letter",
+     a Unicode property rather than a hand-written range, and the rule is pinned by
+     tests. A gate that cries wolf gets switched off. The comparison is also now a
+     real cross-source check: the word count comes from quran.com's `audio.segments`
+     and the text from alquran.cloud, so agreement means two publishers count the
+     same words.
+  2. **Published clips had no provenance in the repository.** Build records lived only
+     in the git-ignored `output/`, so on a fresh checkout — a cloud runner, a new
+     laptop — every committed clip failed the gate as unverifiable. `publish.py` now
+     writes `<slug>.build.json` next to each published clip: a published video carries
+     its citation wherever it goes, and the repository's own checks work on a bare
+     checkout. Found by running the suite against a checkout with no build folder.
 
 * **Phase 2 🔨 (2026-10-11)** — Cloud render built and rehearsed; dispatch pending a token.
   * `.github/workflows/render.yml`: plan -> one runner per clip (max-parallel 5) ->

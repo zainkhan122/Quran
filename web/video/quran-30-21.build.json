@@ -1,0 +1,22 @@
+{
+  "file": "output/video/quran-30-21.mp4",
+  "seconds": 52.61,
+  "size_mb": 5.98,
+  "frames": 1577,
+  "arabic_size": 108,
+  "reference": "quran:30:21",
+  "source": "Qur'an 30:21 · Ar-Room",
+  "source_ar": "سُورَةُ الرُّومِ · آیت 21",
+  "grade": "Quran",
+  "topic": "Marriage — love and mercy between spouses",
+  "topic_ur": "نکاح — میاں بیوی کے درمیان محبت اور رحمت",
+  "kind": "quran",
+  "reciter": "Mishary Rashid Alafasy",
+  "timings_source": "api.quran.com v4 audio.segments",
+  "built_at": "2026-10-11T06:25:21",
+  "pipeline": "islamic.studio (measured-ink layout, word-level reveal)",
+  "arabic": "وَمِنْ ءَايَٰتِهِۦٓ أَنْ خَلَقَ لَكُم مِّنْ أَنفُسِكُمْ أَزْوَٰجًۭا لِّتَسْكُنُوٓا۟ إِلَيْهَا وَجَعَلَ بَيْنَكُم مَّوَدَّةًۭ وَرَحْمَةً ۚ إِنَّ فِى ذَٰلِكَ لَءَايَٰتٍۢ لِّقَوْمٍۢ يَتَفَكَّرُونَ",
+  "urdu": "اور اسی کے نشانات (اور تصرفات) میں سے ہے کہ اُس نے تمہارے لئے تمہاری ہی جنس کی عورتیں پیدا کیں تاکہ اُن کی طرف (مائل ہوکر) آرام حاصل کرو اور تم میں محبت اور مہربانی پیدا کر دی جو لوگ غور کرتے ہیں اُن کے لئے ان باتوں میں (بہت سی) نشانیاں ہیں",
+  "english": "And of His signs is that He created for you from yourselves mates that you may find tranquillity in them; and He placed between you affection and mercy. Indeed in that are signs for a people who give thought.",
+  "word_count": 20
+}
