@@ -1,339 +1,249 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Naat Studio · نعت</title>
+<title>Islamic Video Studio — Qur'an &amp; Hadith, verbatim</title>
+<meta name="description" content="Short vertical videos of Qur'an and hadith. Arabic revealed word by word with real recitation, Urdu and English meaning, and a readable citation on every frame.">
 <style>
   :root{
-    --bg:#07110f; --bg2:#0d1c19; --panel:#102420; --panel2:#14302a;
-    --ink:#eaf5f1; --dim:#8fb3aa; --gold:#d9b169; --gold2:#f0d49a;
-    --line:#1d4038; --green:#4bbf9a;
+    --ink:#05130f; --ink2:#0b241c; --teal:#0e3a2f;
+    --gold:#e8c47e; --gold-hi:#ffeec4; --gold-dim:#8a7442;
+    --ivory:#f3f8f5; --muted:#9fbdb2;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
+  @font-face{font-family:"Amiri";src:url("fonts/Amiri-Regular.ttf") format("truetype");font-display:swap}
+  @font-face{font-family:"Nastaliq";src:url("fonts/NotoNastaliqUrdu-Regular.ttf") format("truetype");font-display:swap}
+  @font-face{font-family:"Naskh";src:url("fonts/NotoNaskhArabic-Regular.ttf") format("truetype");font-display:swap}
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
+  html{scroll-behavior:smooth}
   body{
-    background:
-      radial-gradient(1200px 600px at 80% -10%, #173a32 0%, transparent 60%),
-      radial-gradient(900px 500px at 10% 110%, #123029 0%, transparent 55%),
-      var(--bg);
-    color:var(--ink);
-    font:15px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-    min-height:100vh;
+    margin:0; background:
+      radial-gradient(1200px 700px at 50% -10%, #123f33 0%, transparent 60%),
+      linear-gradient(180deg,var(--ink) 0%, var(--ink2) 55%, #071a15 100%);
+    background-attachment:fixed;
+    color:var(--ivory); font-family:var(--sans); line-height:1.55;
+    -webkit-font-smoothing:antialiased;
   }
-  .wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px}
-  header{position:relative;padding:30px 0 26px;border-bottom:1px solid var(--line)}
-  header .pat{position:absolute;right:0;top:8px;opacity:.22;pointer-events:none}
-  h1{margin:0 0 6px;font-size:30px;letter-spacing:.2px;font-weight:650}
-  h1 .u{font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq",serif;color:var(--gold);font-size:34px}
-  .sub{color:var(--dim);margin:0;max-width:70ch}
-  .badges{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
-  .badge{font-size:11.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--gold2);
-    border:1px solid var(--line);background:#0c1f1b;padding:4px 9px;border-radius:999px}
-  h2{font-size:15px;letter-spacing:.10em;text-transform:uppercase;color:var(--gold);
-    margin:34px 0 4px;font-weight:650}
-  h2 + .hint{color:var(--dim);margin:0 0 14px;font-size:13.5px}
-  .grid{display:grid;gap:16px}
-  .cols2{grid-template-columns:1.25fr .95fr}
-  @media(max-width:820px){.cols2{grid-template-columns:1fr}}
-  .card{background:linear-gradient(180deg,var(--panel) 0%,var(--bg2) 100%);
-    border:1px solid var(--line);border-radius:14px;padding:18px}
-  label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.08em;
-    color:var(--dim);margin:0 0 6px}
-  textarea,input,select{width:100%;background:#081714;color:var(--ink);
-    border:1px solid var(--line);border-radius:10px;padding:11px 12px;
-    font:inherit;outline:none}
-  textarea{min-height:150px;line-height:2.15;font-size:17px}
-  textarea:lang(ur),.urdu{font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq",serif}
-  textarea:focus,input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px #d9b1691f}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
-  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px}
-  button{cursor:pointer;font:inherit;font-weight:600;border-radius:10px;border:1px solid var(--line);
-    background:#0d211d;color:var(--ink);padding:10px 14px;transition:.15s}
-  button:hover{border-color:var(--gold);color:var(--gold2)}
-  button.primary{background:linear-gradient(180deg,var(--gold2),var(--gold));color:#2a1c05;border-color:#b8944f}
-  button.primary:hover{filter:brightness(1.06);color:#2a1c05}
-  button:disabled{opacity:.45;cursor:not-allowed}
-  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-  .lib{display:grid;gap:10px}
-  .item{display:flex;align-items:center;gap:14px;background:#0b1c19;border:1px solid var(--line);
-    border-radius:12px;padding:12px 14px}
-  .item .meta{flex:1;min-width:0}
-  .item .t{font-weight:600}
-  .item .d{color:var(--dim);font-size:12.5px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .item audio{height:34px;max-width:270px;width:100%}
-  .empty{color:var(--dim);font-size:13.5px;border:1px dashed var(--line);border-radius:12px;padding:16px}
-  table{width:100%;border-collapse:collapse;font-size:13.5px}
-  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{color:var(--gold);font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:650}
-  .yes{color:var(--green);font-weight:600}
-  .no{color:#e0796f;font-weight:600}
-  .part{color:var(--gold);font-weight:600}
-  code{background:#0a1a17;border:1px solid var(--line);border-radius:6px;padding:1.5px 6px;
-    font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--gold2)}
-  .log{margin-top:12px;background:#061412;border:1px solid var(--line);border-radius:10px;
-    padding:11px 13px;font:12.5px ui-monospace,Menlo,monospace;color:var(--dim);
-    max-height:170px;overflow:auto;white-space:pre-wrap}
-  footer{margin-top:46px;padding-top:20px;border-top:1px solid var(--line);
-    color:var(--dim);font-size:12.5px}
-  .adab{border-left:3px solid var(--gold);background:#0c1d1a;padding:12px 16px;
-    border-radius:0 10px 10px 0;color:#cfe4dd;font-size:13.5px;margin-top:16px}
-  .toggle{display:flex;gap:8px;align-items:center;color:var(--dim);font-size:13px;margin-top:10px}
-  details summary{cursor:pointer;color:var(--gold);font-size:13px;margin-top:12px}
+  .ar{font-family:"Amiri","Traditional Arabic",serif;direction:rtl;unicode-bidi:isolate;line-height:1.9}
+  .ur{font-family:"Nastaliq","Noto Nastaliq Urdu","Jameel Noori Nastaleeq",serif;direction:rtl;unicode-bidi:isolate;line-height:2.3}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+  header.hero{padding:58px 0 26px;text-align:center;position:relative}
+  .rule{height:1px;background:linear-gradient(90deg,transparent,var(--gold-dim),transparent);margin:26px auto;max-width:420px}
+  .eyebrow{letter-spacing:.32em;text-transform:uppercase;font-size:11.5px;color:var(--gold);opacity:.9}
+  h1{font-family:var(--serif);font-weight:600;font-size:clamp(30px,5vw,50px);margin:14px 0 8px;letter-spacing:.01em}
+  h1 .g{color:var(--gold-hi)}
+  .lede{color:var(--muted);max-width:660px;margin:0 auto;font-size:15.5px}
+  .ornament{display:block;margin:22px auto 0;opacity:.75}
+  .chips{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin:30px 0 8px}
+  .chip{
+    border:1px solid rgba(232,196,126,.32); background:rgba(232,196,126,.05);
+    color:var(--gold); border-radius:999px; padding:7px 15px; font-size:13px;
+    cursor:pointer; transition:.18s; font-family:inherit
+  }
+  .chip:hover{background:rgba(232,196,126,.13)}
+  .chip[aria-pressed="true"]{background:var(--gold);color:#12241d;border-color:var(--gold);font-weight:600}
+  .grid{display:grid;gap:26px;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));padding:30px 0 10px}
+  .card{
+    background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));
+    border:1px solid rgba(232,196,126,.17); border-radius:18px; overflow:hidden;
+    cursor:pointer; transition:transform .22s, border-color .22s, box-shadow .22s;
+    display:flex; flex-direction:column
+  }
+  .card:hover{transform:translateY(-4px); border-color:rgba(232,196,126,.5); box-shadow:0 18px 44px rgba(0,0,0,.5)}
+  .shot{position:relative;aspect-ratio:9/16;background:#08201a;overflow:hidden}
+  .shot img,.shot video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+  .shot video{opacity:0;transition:opacity .3s}
+  .card:hover .shot video{opacity:1}
+  .badge{
+    position:absolute;top:11px;left:11px;z-index:3;background:rgba(5,19,15,.78);
+    border:1px solid rgba(232,196,126,.42); color:var(--gold-hi); font-size:11px;
+    letter-spacing:.1em; text-transform:uppercase; padding:4px 9px; border-radius:7px;
+    backdrop-filter:blur(4px)
+  }
+  .dur{
+    position:absolute;bottom:11px;right:11px;z-index:3;background:rgba(5,19,15,.78);
+    color:var(--ivory); font-size:11.5px; padding:3px 8px; border-radius:6px; font-variant-numeric:tabular-nums
+  }
+  .play{
+    position:absolute;inset:0;z-index:2;display:grid;place-items:center;opacity:0;transition:opacity .3s;
+    background:linear-gradient(180deg,transparent 40%,rgba(5,19,15,.55))
+  }
+  .card:hover .play{opacity:1}
+  .play span{
+    width:56px;height:56px;border-radius:50%;border:1.5px solid var(--gold);
+    background:rgba(232,196,126,.16);display:grid;place-items:center
+  }
+  .play span::after{content:"";border-left:15px solid var(--gold-hi);border-top:9.5px solid transparent;border-bottom:9.5px solid transparent;margin-left:4px}
+  .meta{padding:15px 16px 17px;display:flex;flex-direction:column;gap:6px;flex:1}
+  .t-en{font-weight:700;font-size:15px;letter-spacing:.005em;color:var(--gold-hi)}
+  .t-ur{font-size:15.5px;color:var(--gold);margin-top:1px}
+  .src{font-size:12.5px;color:var(--muted);margin-top:auto;padding-top:9px;border-top:1px solid rgba(232,196,126,.13)}
+  .src b{color:#dbe9e3;font-weight:600}
+  footer{padding:44px 0 66px;text-align:center;color:var(--muted);font-size:13px}
+  footer .note{max-width:640px;margin:0 auto 14px;line-height:1.7}
+  footer a{color:var(--gold)}
+  /* lightbox */
+  dialog.pv{
+    border:1px solid rgba(232,196,126,.3); border-radius:20px; padding:0; max-width:1000px;
+    width:min(94vw,1000px); background:#08201a; color:var(--ivory); overflow:hidden
+  }
+  dialog.pv::backdrop{background:rgba(2,10,8,.82); backdrop-filter:blur(5px)}
+  .pv-in{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr)}
+  @media(max-width:760px){.pv-in{grid-template-columns:1fr}}
+  .pv-video{background:#000;display:flex;align-items:center}
+  .pv-video video{width:100%;max-height:78vh;display:block}
+  .pv-text{padding:24px 26px 28px;min-width:0;max-height:78vh;overflow:auto}
+  .pv-top{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+  .pv-topic{font-weight:700;color:var(--gold-hi);font-size:17px}
+  .pv-topic-ur{color:var(--gold);font-size:17px;margin-top:4px}
+  .x{background:none;border:1px solid rgba(232,196,126,.4);color:var(--gold);border-radius:9px;
+     width:34px;height:34px;font-size:17px;cursor:pointer;line-height:1;flex:0 0 auto}
+  .x:hover{background:rgba(232,196,126,.14)}
+  .sec{margin-top:19px;padding-top:15px;border-top:1px solid rgba(232,196,126,.14)}
+  .sec h4{margin:0 0 8px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim)}
+  .sec p{margin:0;font-size:15px;color:#e6f1ec}
+  .sec.ar p{font-size:23px}
+  .sec.ur p{font-size:16.5px;color:#f3f8f5}
+  .grade{display:inline-block;margin-top:9px;font-size:11.5px;letter-spacing:.06em;
+         border:1px solid rgba(232,196,126,.35);border-radius:6px;padding:3px 9px;color:var(--gold)}
+  .empty{padding:60px 0;text-align:center;color:var(--muted)}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-<header>
-  <svg class="pat" width="190" height="150" viewBox="0 0 190 150" fill="none">
-    <g stroke="#d9b169" stroke-width="1.1">
-      <path d="M95 8 L140 40 L140 92 L95 124 L50 92 L50 40 Z"/>
-      <path d="M95 26 L124 47 L124 85 L95 106 L66 85 L66 47 Z"/>
-      <path d="M95 44 L110 55 L110 77 L95 88 L80 77 L80 55 Z"/>
-      <circle cx="95" cy="66" r="6"/>
+<header class="hero wrap">
+  <div class="eyebrow">Islamic Video Studio</div>
+  <h1>Qur'an &amp; Hadith, <span class="g">verbatim</span></h1>
+  <svg class="ornament" width="190" height="26" viewBox="0 0 190 26" aria-hidden="true">
+    <g fill="none" stroke="#8a7442" stroke-width="1.1">
+      <path d="M2 13h52"/><path d="M136 13h52"/>
+      <path d="M95 2l11 11-11 11-11-11z"/>
+      <circle cx="95" cy="13" r="4.2"/>
+      <path d="M62 13c6-6 12-6 17 0-5 6-11 6-17 0z"/>
+      <path d="M128 13c-6-6-12-6-17 0 5 6 11 6 17 0z"/>
+      <path d="M74 6.5v13M116 6.5v13"/>
     </g>
   </svg>
-  <h1>Naat Studio <span class="u" dir="rtl">نعت</span></h1>
-  <p class="sub">Open-source Urdu naat generation on a CPU-only budget. Sacred text in,
-     a mastered recitation out — via a 2&nbsp;GB sandbox, a free GitHub Actions runner,
-     and free GitHub Pages hosting.<br>
-     <strong style="color:var(--gold2)">Delivery matters:</strong> stock TTS <em>reads</em> Urdu.
-     Tarannum reshapes the pitch contour into a raga — sustained vowels, portamento between
-     notes, a held line-final note — while leaving the spectral envelope untouched, so the
-     voice keeps its identity and the consonants stay intelligible.</p>
-  <div class="badges">
-    <span class="badge">VITS · 36M · 722 MB peak</span>
-    <span class="badge">RTF 0.48× on 2 vCPU</span>
-    <span class="badge">−16.7 LUFS master</span>
-    <span class="badge">Free tier</span>
-  </div>
+  <p class="lede">
+    Short vertical films of Qur'an and hadith. The Arabic appears
+    <strong>word by word</strong>, in time with a real recitation, followed by the Urdu
+    meaning. Every frame carries its citation.
+  </p>
+  <div class="chips" id="chips"></div>
 </header>
 
-<h2>Library · کتاب</h2>
-<p class="hint">Rendered naats published by the workflow to this Pages site.</p>
-<div class="card"><div class="lib" id="lib"></div></div>
+<main class="wrap">
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden>No videos built yet — run <code>python -m islamic.produce</code>.</div>
+</main>
 
-<h2>Compose · نعت لکھیں</h2>
-<p class="hint">One breath group per line. End a stanza with <code>۔</code> for a longer pause.
-   The honourific <code>ﷺ</code> is expanded before synthesis.</p>
-<div class="grid cols2">
-  <div class="card">
-    <label for="lyrics">Urdu naat text</label>
-    <textarea id="lyrics" dir="rtl" lang="ur" class="urdu" spellcheck="false">یا نبی سلام علیک، یا رسول سلام علیک۔
-آپ کا در ہے میری جا، آپ کا دیوانہ ہوں۔
-مدینے کی گلیوں کا میں طالب ہوں۔
-رحمتِ دو جہاں، یا محمد مصطفیٰ۔</textarea>
-    <div class="row3">
-      <div>
-        <label for="engine">Voice</label>
-        <select id="engine">
-          <option value="mms" selected>Meta MMS baseline · 748 MB</option>
-          <option value="mms-ft">fine-tuned Urdu voice · 838 MB</option>
-          <option value="gtts">Google Translate TTS · online</option>
-        </select>
-      </div>
-      <div>
-        <label for="style">Backing</label>
-        <select id="style">
-          <option value="a-cappella">a-cappella (vocal only)</option>
-          <option value="daf">daf percussion</option>
-          <option value="daf-drone" selected>daf + drone pad</option>
-          <option value="drone">drone only</option>
-          <option value="ney">ney flute (MusicGen · CI)</option>
-          <option value="ney-daf">ney + daf (MusicGen · CI)</option>
-          <option value="strings">strings + harmonium (MusicGen · CI)</option>
-        </select>
-      </div>
-      <div><label for="bpm">Tempo</label><input id="bpm" type="number" value="66" min="40" max="120"></div>
-      <div><label for="seed">Seed</label><input id="seed" type="number" value="1234"></div>
-    </div>
-    <div class="row3">
-      <div>
-        <label for="recitation">Delivery</label>
-        <select id="recitation">
-          <option value="read">read — flat TTS prosody</option>
-          <option value="tarannum" selected>tarannum — melodic recitation</option>
-        </select>
-      </div>
-      <div>
-        <label for="raga">Raga</label>
-        <select id="raga">
-          <option value="bhairavi" selected>bhairavi — grave</option>
-          <option value="kafi">kafi — ghazal colour</option>
-          <option value="yaman">yaman — serene</option>
-          <option value="khammaj">khammaj — bright</option>
-        </select>
-      </div>
-      <div>
-        <label for="contour">Phrase shape</label>
-        <select id="contour">
-          <option value="arch" selected>arch — rise and fall</option>
-          <option value="gentle">gentle</option>
-          <option value="call">call — high opening</option>
-          <option value="soz">soz — descending, elegiac</option>
-          <option value="chalan">chalan — long elaborated</option>
-        </select>
-      </div>
-    </div>
-    <div class="btns">
-      <button class="primary" id="queue">Queue on GitHub Actions</button>
-      <button id="copy">Copy lyrics</button>
-      <button id="preview">Load from repo</button>
-    </div>
-    <div class="log" id="log">ready. sandbox-safe: nothing here phones home until you press a button.</div>
+<footer class="wrap">
+  <div class="note">
+    Text is fetched verbatim from <b>api.quran.com</b> and the <b>fawazahmed0 hadith
+    API</b> — never transcribed by hand, never paraphrased. Qur'anic Arabic is a real
+    reciter's voice. Owed to the reader: every citation is on the frame.
   </div>
-
-  <div class="card">
-    <label for="repo">GitHub repo</label>
-    <input id="repo" placeholder="owner/repo">
-    <label for="token" style="margin-top:12px">Fine-grained token (optional)</label>
-    <input id="token" type="password" placeholder="github_pat_… · Actions: write">
-    <div class="toggle"><input type="checkbox" id="remember" checked style="width:auto"><span>remember in this browser</span></div>
-    <details>
-      <summary>How dispatch works</summary>
-      <p style="color:var(--dim);font-size:13px">With a token this page calls
-      <code>workflow_dispatch</code> directly. Without one it opens the Actions tab and
-      copies your lyrics to the clipboard, so you paste them into the run form.
-      Tokens never leave your browser — they go straight to <code>api.github.com</code>.</p>
-    </details>
-    <div class="adab"><strong>Adab &amp; accuracy.</strong> Naat is vocal devotional tradition.
-      Many scholars hold instrumental music impermissible — the default is a cappella.
-      Machine synthesis can mispronounce sacred names; always have a human recite-check
-      the lyrics and the audio before sharing.</div>
-  </div>
-</div>
-
-<h2>What runs where</h2>
-<p class="hint">Measured, not estimated. Sandbox = 2 vCPU / 2 GB RAM / no GPU.</p>
-<div class="card" style="overflow-x:auto">
-  <table>
-    <thead><tr><th>Tool</th><th>Type</th><th>Sandbox 2 GB</th><th>Actions 16 GB</th><th>Note</th></tr></thead>
-    <tbody>
-      <tr><td>facebook/mms-tts-urd-script_arabic</td><td>Urdu TTS</td><td class="yes">YES</td><td class="yes">YES</td><td>748 MB · RTF 0.61× · CC-BY-NC</td></tr>
-      <tr><td>syedmuhammad/mms-tts-urdu-vits_finetuned</td><td>Urdu TTS</td><td class="yes">YES</td><td class="yes">YES</td><td>838 MB · RTF 0.38× · slower delivery</td></tr>
-      <tr><td>gTTS (Google Translate endpoint)</td><td>Urdu TTS</td><td class="part">52 MB</td><td class="yes">YES</td><td>online only · unofficial endpoint</td></tr>
-      <tr><td>Naat Studio procedural backing</td><td>NumPy synth</td><td class="yes">YES</td><td class="yes">YES</td><td>dependency-free</td></tr>
-      <tr><td>MusicGen-small fp32</td><td>text→music</td><td class="no">NO</td><td class="yes">YES</td><td>mmap 2.36 GB fails at 2 GB</td></tr>
-      <tr><td>MusicGen-small q8 ONNX</td><td>text→music</td><td class="part">~2 s clips</td><td class="yes">YES</td><td>1.36 GB RSS · q8</td></tr>
-      <tr><td>ACE-Step · YuE · MiniMax-Music</td><td>full songs</td><td class="no">NO</td><td class="part">variant</td><td>GPU-first, 4–24 GB VRAM</td></tr>
-      <tr><td>naat/tarannum.py (WORLD source-filter)</td><td>recitation</td><td class="yes">YES</td><td class="yes">YES</td><td>+0.3 s for 17 s · 741 MB · no extra model</td></tr>
-      <tr><td>DiffSinger / SVS (true singing)</td><td>recitation</td><td class="no">NO</td><td class="part">train on GPU</td><td>needs a fine-tuned voicebank</td></tr>
-      <tr><td>ffmpeg mix + loudnorm</td><td>mastering</td><td class="yes">YES</td><td class="yes">YES</td><td>−16 LUFS target</td></tr>
-      <tr><td>GitHub Pages</td><td>hosting</td><td>—</td><td class="yes">YES</td><td>free, static only</td></tr>
-    </tbody>
-  </table>
-</div>
-
-<footer>
-  Naat Studio · pipelines for <code>python -m naat.pipeline</code> ·
-  audio synthesised by machine, adab by you.
+  <div>Built in the open · <span id="count"></span></div>
 </footer>
-</div>
+
+<dialog class="pv" id="pv">
+  <div class="pv-in">
+    <div class="pv-video"><video id="pvV" playsinline controls></video></div>
+    <div class="pv-text">
+      <div class="pv-top">
+        <div>
+          <div class="pv-topic" id="pvTopic"></div>
+          <div class="pv-topic-ur ur" id="pvTopicUr"></div>
+        </div>
+        <button class="x" id="pvX" aria-label="Close">&#10005;</button>
+      </div>
+      <div class="sec ar"><h4>Arabic</h4><p id="pvAr"></p></div>
+      <div class="sec ur"><h4>Urdu</h4><p id="pvUr"></p></div>
+      <div class="sec"><h4>English</h4><p id="pvEn"></p></div>
+      <div class="sec"><h4>Reference</h4><p id="pvRef"></p><div class="grade" id="pvGrade"></div></div>
+    </div>
+  </div>
+</dialog>
 
 <script>
-(function(){
-  const $ = id => document.getElementById(id);
-  const log = (m) => { const el=$('log'); el.textContent = m; el.scrollTop = el.scrollHeight; };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const mmss = s => { s = Math.round(s||0); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; };
+let ALL = [], filter = "All";
 
-  // ---- settings persistence ------------------------------------------------
-  const KEY = 'naat-studio-settings';
-  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)||'{}'); } catch(e){ return {}; } };
-  const save = () => {
-    if (!$('remember').checked) { localStorage.removeItem(KEY); return; }
-    localStorage.setItem(KEY, JSON.stringify({
-      repo: $('repo').value.trim(), token: $('token').value.trim()
-    }));
-  };
-  const st = load();
-  if (st.repo) $('repo').value = st.repo;
-  if (st.token) $('token').value = st.token;
-  ['repo','token'].forEach(k => $(k).addEventListener('change', save));
+function cardHTML(it, i){
+  const ar = it.arabic ? `<div class="ar" style="font-size:14px;color:#cfe3da;margin-top:2px">${esc(it.arabic).slice(0,90)}</div>` : "";
+  return `<article class="card" data-i="${i}">
+    <div class="shot">
+      <span class="badge">${esc(it.kind === "quran" ? "Qur'an" : "Hadith")}</span>
+      <img loading="lazy" src="${esc(it.poster)}" alt="${esc(it.source)}">
+      <video preload="none" muted loop playsinline src="${esc(it.file)}"></video>
+      <div class="play"><span></span></div>
+      <span class="dur">${mmss(it.seconds)}</span>
+    </div>
+    <div class="meta">
+      <div class="t-en">${esc(it.topic || it.source)}</div>
+      <div class="t-ur ur" style="font-size:15px">${esc(it.topic_ur || "")}</div>
+      ${ar}
+      <div class="src"><b>${esc(it.source)}</b></div>
+    </div>
+  </article>`;
+}
 
-  // ---- library -------------------------------------------------------------
-  // A demo entry keeps this page meaningful even when opened offline.
-  const DEMO = [{
-    file: 'demo-naat.mp3', title: 'demo naat — daf + drone',
-    seconds: 16.96, style: 'daf-drone', bpm: 66, tts_rtf: 0.483,
-    lines: ['یا نبی سلام علیک، یا رسول سلام علیک۔','آپ کا در ہے میری جا، آپ کا دیوانہ ہوں۔',
-            'مدینے کی گلیوں کا میں طالب ہوں۔','رحمتِ دو جہاں، یا محمد مصطفیٰ۔']
-  }];
-  function render(items){
-    const lib = $('lib');
-    if (!items.length){ lib.innerHTML = '<div class="empty">No renders yet. Queue one, or push a file to <code>lyrics/</code>.</div>'; return; }
-    lib.innerHTML = '';
-    items.forEach(it => {
-      const d = document.createElement('div'); d.className = 'item';
-      const meta = document.createElement('div'); meta.className='meta';
-      const t = document.createElement('div'); t.className='t';
-      t.textContent = it.title || it.file;
-      const sub = document.createElement('div'); sub.className='d'; sub.dir='rtl';
-      sub.textContent = (it.lines && it.lines[0]) || '';
-      if (it.voice){
-        const v = document.createElement('div'); v.className='d'; v.dir='ltr';
-        v.textContent = 'voice: ' + it.voice;
-        v.style.color = 'var(--gold2)';
-        meta.appendChild(v);
-      }
-      const bits = document.createElement('div'); bits.className='d'; bits.dir='ltr';
-      bits.textContent = [it.style, it.bpm?it.bpm+' bpm':null,
-        it.seconds?Number(it.seconds).toFixed(1)+'s':null,
-        it.tts_rtf?'RTF '+it.tts_rtf:null,
-        it.peak_rss_mb?it.peak_rss_mb+' MB':null].filter(Boolean).join(' · ');
-      meta.append(t, sub, bits);
-      const a = document.createElement('audio');
-      a.controls = true; a.preload = 'none'; a.src = 'audio/' + it.file;
-      d.append(meta, a);
-      lib.append(d);
-    });
-  }
-  fetch('audio/manifest.json', {cache:'no-store'})
-    .then(r => r.ok ? r.json() : Promise.reject())
-    .then(m => render(m.items && m.items.length ? m.items : DEMO))
-    .catch(() => { render(DEMO); log('offline or no manifest yet — showing the bundled demo entry.'); });
+function render(){
+  const list = ALL.map((it,i)=>[it,i]).filter(([it]) => filter === "All" || (it.topic||"") === filter);
+  const g = document.getElementById("grid");
+  g.innerHTML = list.map(([it,i]) => cardHTML(it,i)).join("");
+  document.getElementById("empty").hidden = list.length > 0;
+  g.querySelectorAll(".card").forEach(el => {
+    const v = el.querySelector("video");
+    el.addEventListener("mouseenter", () => { v.play().catch(()=>{}); });
+    el.addEventListener("mouseleave", () => { v.pause(); v.currentTime = 0; });
+    el.addEventListener("click", () => open(ALL[+el.dataset.i]));
+  });
+}
 
-  // ---- actions -------------------------------------------------------------
-  $('copy').onclick = async () => {
-    try { await navigator.clipboard.writeText($('lyrics').value); log('lyrics copied to clipboard.'); }
-    catch(e){ log('clipboard blocked — select the text and copy manually.'); }
-  };
+function chips(){
+  const topics = ["All", ...[...new Set(ALL.map(i => i.topic).filter(Boolean))]];
+  document.getElementById("chips").innerHTML = topics.map(t =>
+    `<button class="chip" data-t="${esc(t)}" aria-pressed="${t===filter}">${esc(t)}</button>`).join("");
+  document.querySelectorAll(".chip").forEach(c => c.onclick = () => {
+    filter = c.dataset.t; chips(); render();
+  });
+}
 
-  $('preview').onclick = () => log('Server-side render not available on a static host. ' +
-    'Run:  python -m naat.pipeline --lyrics lyrics/your_naat.txt --style ' + $('style').value);
+function open(it){
+  const d = document.getElementById("pv");
+  document.getElementById("pvV").src = it.file;
+  document.getElementById("pvTopic").textContent = it.topic || "";
+  document.getElementById("pvTopicUr").textContent = it.topic_ur || "";
+  document.getElementById("pvAr").textContent = it.arabic || "—";
+  document.getElementById("pvUr").textContent = it.urdu || "—";
+  document.getElementById("pvEn").textContent = it.english || "—";
+  document.getElementById("pvRef").textContent = it.source + (it.source_ar ? "  ·  " + it.source_ar : "");
+  document.getElementById("pvGrade").textContent = it.grade || "";
+  d.showModal();
+  document.getElementById("pvV").play().catch(()=>{});
+}
+document.getElementById("pvX").onclick = () => {
+  document.getElementById("pvV").pause();
+  document.getElementById("pv").close();
+};
+document.getElementById("pv").addEventListener("click", e => {
+  if (e.target.id === "pv"){ document.getElementById("pvV").pause(); e.target.close(); }
+});
 
-  $('queue').onclick = async () => {
-    const repo = $('repo').value.trim(), token = $('token').value.trim();
-    const body = {
-      ref: 'main',
-      inputs: {
-        lyrics: $('lyrics').value,           // workflow writes it to lyrics/
-        style: $('style').value,
-        engine: $('engine').value,
-        recitation: $('recitation').value,
-        raga: $('raga').value,
-        contour: $('contour').value,
-        bpm: String($('bpm').value || 66)
-      }
-    };
-    if (!repo){ log('Set owner/repo first.'); return; }
-    if (!token){
-      await $('copy').onclick();
-      window.open('https://github.com/'+repo+'/actions/workflows/naat.yml','_blank','noopener');
-      log('Opened the Actions tab and copied your lyrics. Use "Run workflow", paste, run.');
-      return;
-    }
-    log('dispatching workflow_dispatch → '+repo+' …');
-    try{
-      const r = await fetch('https://api.github.com/repos/'+repo+'/actions/workflows/naat.yml/dispatches',{
-        method:'POST',
-        headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
-        body: JSON.stringify(body)
-      });
-      log(r.status===204 ? 'queued. Watch it at github.com/'+repo+'/actions'
-                         : 'failed: HTTP '+r.status+' '+await r.text());
-    }catch(e){ log('network error: '+e.message); }
-  };
-})();
+fetch("video/manifest.json").then(r => r.json()).then(m => {
+  ALL = m.items || [];
+  document.getElementById("count").textContent = ALL.length + " video" + (ALL.length===1?"":"s") +
+    " · licensed text, cited";
+  chips(); render();
+}).catch(() => {
+  document.getElementById("empty").hidden = false;
+  document.getElementById("empty").textContent =
+    "Open this page through a web server (python3 -m http.server --directory web) so manifest.json can be read.";
+});
 </script>
 </body>
 </html>

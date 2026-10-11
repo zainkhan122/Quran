@@ -1,136 +1,154 @@
-# Naat Studio
+# Islamic Video Studio
 
-Open-source **Urdu naat** generation that runs on free, CPU-only infrastructure.
-
-Sacred text in → mastered recitation out. No GPU. No paid API. No cloud bill.
+Citable short-form Islamic video — Qur'an and hadith — on free, CPU-only
+infrastructure. No GPU. No paid API. No cloud bill.
 
 ```
-یا نبی سلام علیک، یا رسول سلام علیک۔   ──►   demo-naat.mp3   (−16.7 LUFS, 44.1 kHz)
+python3 -m islamic.produce --ref quran:30:21 --topic marriage
+        ──►  output/video/quran-30-21.mp4      1080×1920 · word-synced Arabic · cited
 ```
 
-Read [`BLUEPRINT.md`](BLUEPRINT.md) for the research behind this: what the
-`ai-music-generation` and `text-to-music` topic pages actually offer, what fits in 2 GB,
-what needs the free 16 GB GitHub Actions runner, and why the pipeline is split the way it is.
+## What a finished video contains
 
-## Install
+A vertical 9:16 film, in two movements:
 
-```bash
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-pip install transformers numpy scipy soundfile
-sudo apt-get install -y ffmpeg          # for mixing / loudness normalisation
-```
-
-## Use
-
-```bash
-# 1. write your naat — one breath group per line, ۔ ends a stanza
-$EDITOR lyrics/my_naat.txt
-
-# 2. render
-python -m naat.pipeline --lyrics lyrics/my_naat.txt --style a-cappella   # adab default
-python -m naat.pipeline --lyrics lyrics/my_naat.txt --style daf-drone    # with percussion
-python -m naat.pipeline --lyrics lyrics/my_naat.txt --style ney          # ML bed (needs ~4 GB+)
-```
-
-Output lands in `output/`: `<stem>.mp3`, `<stem>.wav`, `<stem>.json` (render metrics) and
-`output/stems/` (isolated vocal and backing, for remixing).
-
-### Voices
-
-| Engine | Model | Peak RSS | RTF | Notes |
-|---|---|---|---|---|
-| `mms` *(default)* | `facebook/mms-tts-urd-script_arabic` | 748 MB | 0.61× | offline, CC-BY-NC |
-| `mms-ft` | `syedmuhammad/mms-tts-urdu-vits_finetuned` | 838 MB | 0.38× | offline, unhurried delivery — suits recitation |
-| `gtts` | Google Translate TTS | 52 MB | 0.06× | **online only**, unofficial endpoint |
-
-```bash
-python -m naat.pipeline --lyrics lyrics/my_naat.txt --engine mms-ft
-```
-
-Sacred vocabulary is controlled by `lexicon/urdu_overrides.json` — a hand-reviewed
-surface-form → spoken-form table applied before synthesis. Edit it when an engine
-mispronounces a word; it's the human checkpoint for devotional terms.
-
-### Delivery — read vs tarannum
-
-Stock TTS *reads* Urdu. Recitation is melodic. `naat/tarannum.py` reshapes the pitch contour
-with the WORLD vocoder — raga scale, portamento, vibrato, sustained line-final note — while
-leaving the spectral envelope untouched, so the voice keeps its identity and consonants stay
-intelligible.
-
-```bash
-python -m naat.pipeline --lyrics lyrics/my_naat.txt --recitation tarannum --raga bhairavi --contour arch
-```
-
-| | |
-|---|---|
-| Ragas | `bhairavi` (grave, default) · `kafi` · `yaman` · `khammaj` |
-| Phrase shapes | `arch` (default) · `gentle` · `call` · `soz` · `chalan` |
-| Cost | **+1.1 s per 17 s of audio, 741 MB, no extra model** |
-
-It is not a trained singer — see §7 of [`ASSESSMENT.md`](ASSESSMENT.md) for what it does and
-does not do, and the DiffSinger route to true singing.
-
-### Backing styles
-
-| Style | Engine | Needs | Character |
-|---|---|---|---|
-| `a-cappella` *(default)* | — | any | vocal only — the traditional and conservative choice |
-| `daf` | NumPy | 2 GB | frame-drum percussion only |
-| `daf-drone` / `full` | NumPy | 2 GB | percussion + harmonium-style drone |
-| `drone` | NumPy | 2 GB | sustained tanpura/harmonium pad |
-| `ney`, `ney-daf`, `strings` | MusicGen | **~4 GB+** | ML-scored instrumental bed (use CI or a local GPU box) |
-
-On a low-RAM machine the MusicGen styles **warn and fall back** to the procedural bed rather
-than failing — the same command works everywhere.
-
-## Measured performance
-
-Sandbox: 2 vCPU / 2 GB RAM / no GPU.
-
-| | |
-|---|---|
-| TTS model | `facebook/mms-tts-urd-script_arabic` (VITS, 36.3 M params) |
-| Load time | 4.7 s |
-| Peak RSS, full pipeline | **722–739 MB** |
-| Throughput | **RTF 0.46–0.48×** (~2× faster than realtime) |
-| Master | −16.7 LUFS integrated, −1.5 dBTP, 44.1 kHz stereo, 192 kbps MP3 |
-
-Full pipeline on a 4-line naat: **~10 s wall → 17 s of finished audio.**
-
-## Free infrastructure
-
-| Tier | Spec | Cost |
+| | On screen | Audio |
 |---|---|---|
-| This sandbox | 2 vCPU / 2 GB | free |
-| GitHub Actions, **public** repo | **4 vCPU / 16 GB / unlimited minutes** | free |
-| GitHub Pages | static hosting + audio | free |
-| In-browser MusicGen (q8 ONNX / WASM) | the visitor's own CPU | free |
+| **1 · Arabic** | the ayah, revealed **word by word** in time with the recitation — the word being recited lights gold, the words already recited stay gold | a real qari (Mishra Alafasy) |
+| **2 · Meaning** | the Urdu translation, then the English caption | Urdu narration |
 
-Push a file to `lyrics/` or run the **Naat Studio - generate** workflow manually; it renders,
-uploads an artifact and publishes to Pages. See [`.github/workflows/naat.yml`](.github/workflows/naat.yml).
+Throughout there is a **bold explanatory topic line in English and in Urdu**
+(`Marriage — love and mercy between spouses` / `نکاح — میاں بیوی کے درمیان محبت اور رحمت`),
+**topic-specific 2D art** held back at low opacity behind the words, and a
+**citation block at the foot** in a size you can actually read on a phone.
 
-## Layout
+## The rule that shapes everything
+
+**The pipeline never writes, rewrites or paraphrases sacred text.** Every
+character on screen is fetched from a published dataset at build time and shown
+with its reference.
+
+| Content | Source |
+|---|---|
+| Qur'an (Uthmani + Jalandhry Urdu + Sahih English) | `api.quran.com` v4 |
+| Per-word recitation timings | `api.quran.com` v4 `audio.segments` |
+| Qur'an recitation audio | Mishary Rashid Alafasy via `verses.quran.com` |
+| Hadith (10 collections, 11 languages) | `fawazahmed0/hadith-api` via jsDelivr |
+| Fonts (OFL) | google/fonts — verified by `tools/fetch_fonts.py` |
+
+A language model that "remembers" a hadith number or wording invents them with
+total confidence. Fabricated hadith is a grave matter, so the pipeline removes
+that failure mode rather than asking a reviewer to catch it.
+
+**Qur'an is never synthesised.** Quranic Arabic carries tajweed no free TTS
+implements; the recitation is always a real qari. TTS is used only for the
+published Urdu *translation* — and never inside an isnad (see below).
+
+## Word-by-word sync, without guessing
+
+The audio is real, and so are the timings. `api.quran.com` returns, for the very
+recitation file we download, a `segments` array:
 
 ```
-naat/tts.py        Urdu normalisation, breath-grouping, pluggable recitation engines
-lexicon/           pronunciation overrides for sacred vocabulary
-naat/backing.py    NumPy synthesis: ney flute, harmonium drone, daf strokes
-naat/musicgen.py   MusicGen bed with crossfaded chunking (16 GB runner)
-naat/mix.py        ffmpeg sidechain ducking + EBU R128 master
-naat/pipeline.py   CLI orchestrator
-tools/             ONNX in-sandbox MusicGen probe, Pages manifest builder
-web/index.html     self-contained studio UI (GitHub Pages)
-lyrics/            naat texts; authoring comments with # are stripped
+[[0,1,330,930], [1,2,940,3830], …]      word_from, word_to, start_ms, end_ms
 ```
 
-## Please read before publishing
+That is the publisher's own alignment, so no forced aligner, no Whisper model and
+no signal correlation is involved. The two tempting shortcuts both fail:
+the per-word `wbw/*.mp3` clips are cut tight and are 0.74× the length of the full
+ayah (every inter-word pause has been removed), and the clip the API advertises
+for the last word does not exist.
 
-Machine TTS can mispronounce the diacritics that carry sacred names. **Have a human
-recite-check any naat before sharing it.** Default a cappella; never clone a living reciter's
-voice without consent; keep lyrics original or traditional and public-domain; label output as
-machine-generated.
+## Layout is measured, not eyeballed
 
-Licensing: `facebook/mms-tts-*` and MusicGen **weights** are **CC-BY-NC 4.0 — non-commercial
-use only**. Personal, mosque, community and educational use is fine; a monetised channel needs
-permissively licensed weights. See §9 of the blueprint.
+`islamic/studio.py` renders every frame itself:
+
+* **ink-centring** — text blocks are centred on the bounding box of the glyphs
+  actually drawn, not on the layout box. With Amiri's stacked diacritics the two
+  differ enough to make a card look top-heavy.
+* **the topic never overflows** — each line auto-shrinks until it fits one line,
+  so a longer headline loses size, not structure.
+* **ornament is composited as ink** — motif images are gold-on-dark; they are
+  converted to a mask and re-coloured, so only the lines land on the frame and
+  no rectangle seam appears. A blurred scrim pushes the art back exactly where
+  type sits.
+* **frames stream to ffmpeg over stdin** — no intermediate PNGs, ~2.5 minutes for
+  a 50 s video on two cores.
+
+Art rules, encoded in the prompts (`tools/motifs.py`): geometric and botanical
+only, never figurative; never anything that could read as a letter, because a
+stray glyph beside real Qur'anic text is a serious error.
+
+## Quick start
+
+```bash
+bash setup.sh                                  # installs ffmpeg, deps, verifies fonts
+python3 tools/motifs.py                        # which topics have their own art
+python3 -m islamic.produce --ref quran:30:21 --topic marriage
+python3 -m islamic.produce --ref ibnmajah:224 --topic knowledge --english
+python3 tools/publish.py                       # copy into web/video + rebuild manifest
+python3 -m http.server 8000 --directory web    # the site
+```
+
+`setup.sh` is not optional: this sandbox keeps only files under `/home/user`, so
+ffmpeg, the Python wheels and the fonts all have to be re-asserted each session.
+
+### Topics
+
+`marriage` · `children` · `daughters` · `business` · `women` · `parents` ·
+`knowledge` · `prayer` — each with a headline, a short label and a list of
+references in `islamic/topics.py`. That file holds **references only**: a mistake
+there can mislabel which video a verse lands in, but it can never corrupt the
+verse itself.
+
+## Corpus honesty
+
+* Only collections on `TRUSTED_COLLECTIONS` render at all.
+* Hadith are stored and shown **with their isnad**. An earlier attempt to strip
+  the chain for a cleaner card silently cut mid-chain — in Urdu isnad, `"نے کہا"`
+  means "he said that [the next narrator]…", so the trimmer happily presented a
+  narrator's name as the hadith. It was removed; `has_isnad()` is now a detector,
+  never a trimmer.
+* Collections that publish no Urdu edition (Nawawi 40, Qudsi 40, Dehlawi 40)
+  raise a content error rather than falling back to English-only silently.
+* Where a collection carries a range of grades, the frame says so.
+
+## Repo layout
+
+```
+islamic/
+  sources.py    verbatim fetch + validate() gate; the trust boundary
+  topics.py     topic headlines + reference lists (no sacred text)
+  timings.py    per-word timings from api.quran.com audio.segments
+  studio.py     the renderer: design system, layout, ornament, frame loop
+  produce.py    the CLI that ties it together
+  make.py       legacy multi-scene builder (kept for reference)
+tools/
+  fetch_fonts.py  download + verify OFL fonts (repairs truncated files)
+  motifs.py       the 2D art registry and its prompts
+  publish.py      build folders -> web/video + manifest.json
+naat/           Urdu TTS (used for translation narration only)
+web/            the site: index.html, videos, fonts, posters
+assets/         fonts/, textures/, motifs/
+```
+
+## Publishing
+
+Builds land in `output/video/` (git-ignored). `tools/publish.py` is the only
+thing that writes to `web/`: it copies files, renders a poster frame, rebuilds
+`manifest.json` from each build's `videos.json` + `sources.json`, and prunes
+anything the manifest no longer references — so the site can never link to a
+file that is not there. Pushing the repo deploys the Pages site.
+
+## Licensing
+
+Fonts (Amiri, Noto families) and DejaVu are OFL — safe for commercial use.
+Generated motif art is ours. Recitation and translation text come from the
+sources above; check each upstream's terms before monetising.
+
+**Standing refusal:** no real person's voice, living or dead, without explicit
+written consent.
+
+*(The `naat/` package is the Urdu VITS + tarannum engine, retained because the
+video pipeline uses its TTS for translation narration. Naat generation itself is
+not a goal of this project.)*
