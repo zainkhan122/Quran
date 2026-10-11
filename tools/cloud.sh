@@ -3,10 +3,10 @@
 # Cloud operations for this repo: push, render, watch.
 #
 #   TOKEN=... tools/cloud.sh push                 # push the current branch
-#   TOKEN=... tools/cloud.sh render               # render everything in library.json
-#   TOKEN=... tools/cloud.sh render quran-81-8    # render one clip
+#   TOKEN=... tools/cloud.sh render               # render everything in library.json, and wait
+#   TOKEN=... tools/cloud.sh render quran-81-8    # render one clip, and wait
 #   TOKEN=... tools/cloud.sh runs                 # recent workflow runs
-#   TOKEN=... tools/cloud.sh logs <run-id>        # per-job conclusions
+#   TOKEN=... tools/cloud.sh logs <run-id>        # tail of every failed step
 #   TOKEN=... tools/cloud.sh releases             # published master sets
 #   TOKEN=... tools/cloud.sh upload TAG FILE...   # put media into a Release
 #   TOKEN=... tools/cloud.sh pages-enable         # Pages source = GitHub Actions
@@ -53,39 +53,17 @@ cmd_push() {
   git push "https://x-access-token:${TOKEN}@github.com/${REPO}.git" "HEAD:${branch}" 2>&1 | scrub
 }
 
+# Dispatch a render and wait for THAT run (not "the latest run", which once
+# meant polling nothing for ten minutes). ghapi.py returns the run's id.
 cmd_render() {
   need_token
-  local only="${1:-}"
-  api POST /actions/workflows/render.yml/dispatches \
-    -d "$(python3 -c '
-import json, sys
-print(json.dumps({"ref": "main", "inputs": {"only": sys.argv[1]}}))' "$only")" \
-    -o /dev/null -w "dispatch: HTTP %{http_code}\n" || die "dispatch failed"
-  echo "queued. watch with: tools/cloud.sh runs"
+  local only="${1:-}" id
+  id="$(TOKEN="$TOKEN" python3 "$ROOT/tools/ghapi.py" dispatch render.yml "only=$only")" || die "dispatch failed"
+  echo "render run $id"
+  TOKEN="$TOKEN" python3 "$ROOT/tools/ghapi.py" wait "$id"
 }
 
-cmd_runs() {
-  need_token
-  api GET "/actions/runs?per_page=${1:-5}" | python3 -c '
-import json, sys
-d = json.load(sys.stdin)
-if not d.get("workflow_runs"):
-    print("no runs yet"); raise SystemExit
-for r in d["workflow_runs"]:
-    print(f"  {r[\"id\"]}  {r[\"status\"]:<12} {str(r.get(\"conclusion\")):<10} "
-          f"{r[\"created_at\"][:19]}  {r[\"head_branch\"]}  {r.get(\"display_title\",\"\")[:44]}")'
-}
 
-cmd_logs() {
-  need_token
-  local id="${1:?usage: cloud.sh logs <run-id>}"
-  api GET "/actions/runs/$id/jobs" | python3 -c '
-import json, sys
-for j in json.load(sys.stdin).get("jobs", []):
-    steps = [s for s in j.get("steps", []) if s.get("conclusion") not in (None, "success", "skipped")]
-    bad = ", ".join(f"{s[\"name\"]}={s[\"conclusion\"]}" for s in steps) or "-"
-    print(f"  {j[\"name\"]:<26} {j[\"status\"]:<12} {str(j.get(\"conclusion\")):<10} {bad}")'
-}
 
 cmd_releases() {
   need_token
@@ -138,34 +116,15 @@ cmd_pages_enable() {
 
 # Block until a run completes; exit non-zero unless it succeeded. Polls every
 # 20 s, so a hung run costs nothing but wall-clock.
-cmd_wait() {
-  need_token
-  local id="${1:-}"
-  if [[ -z "$id" ]]; then
-    id="$(api GET "/actions/runs?per_page=1" | python3 -c 'import json,sys; print(json.load(sys.stdin)["workflow_runs"][0]["id"])')"
-  fi
-  local i=0
-  while :; do
-    local st; st="$(api GET "/actions/runs/$id" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["status"], d.get("conclusion") or "-", d["name"])')"
-    read -r status conclusion name <<<"$st"
-    printf '  [%3ds] %s %s %s\n' "$((i*20))" "$name" "$status" "$conclusion"
-    if [[ "$status" == "completed" ]]; then
-      cmd_logs "$id"
-      [[ "$conclusion" == "success" ]]; return
-    fi
-    i=$((i+1)); [[ $i -gt ${WAIT_MAX:-80} ]] && { echo "  still running; re-run: cloud.sh wait $id"; return 2; }
-    sleep 20
-  done
-}
 
 case "${1:-}" in
   push)     shift; cmd_push "$@" ;;
   render)   shift; cmd_render "$@" ;;
-  runs)     shift; cmd_runs "$@" ;;
-  logs)     shift; cmd_logs "$@" ;;
+  runs)     shift; TOKEN="$TOKEN" python3 "$ROOT/tools/ghapi.py" runs "$@" ;;
+  logs)     shift; TOKEN="$TOKEN" python3 "$ROOT/tools/ghapi.py" log "$@" ;;
   releases) shift; cmd_releases "$@" ;;
   upload)   shift; cmd_upload "$@" ;;
   pages-enable) shift; cmd_pages_enable "$@" ;;
-  wait)     shift; cmd_wait "$@" ;;
+  wait)     shift; TOKEN="$TOKEN" python3 "$ROOT/tools/ghapi.py" wait "$@" ;;
   *) sed -n '3,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' ;;
 esac

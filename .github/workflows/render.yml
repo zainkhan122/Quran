@@ -73,6 +73,18 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: python3 tools/plan_render.py --only "$ONLY" --tag "$TAG" --github-output >> "$GITHUB_OUTPUT"
 
+      # Only the light Python packages the tests import. The full toolchain
+      # (ffmpeg, the voice models) is the render job's; this job stays seconds.
+      # Missing until 2026-10-11 - the first real run of this workflow failed
+      # here with "No module named 'PIL'", because the job had never run.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: setup.sh
+      - name: Test dependencies
+        run: pip install -q pillow numpy scipy soundfile
+
       # The gates are tested before any runner is spent on a render. A broken
       # gate must stop the run, not silently pass everything through it.
       - name: Test the gates

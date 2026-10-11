@@ -283,9 +283,25 @@ class TestPublishIsNonDestructive(unittest.TestCase):
         items = json.loads(manifest.read_text(encoding="utf-8"))["items"]
         self.assertTrue(items)
         for i in items:
-            self.assertTrue((ROOT / "web" / "video" / i["file"]).exists(),
-                            f"manifest points at a missing file: {i['file']}")
+            # Media is not in git any more (it lives in a GitHub Release), so
+            # "the mp4 exists in the checkout" is the wrong thing to require -
+            # it was only ever true on a laptop that had just rendered. What
+            # must be true everywhere: the citation is in git, and the item
+            # names the Release its media can be fetched from.
+            rec = ROOT / "web" / "video" / i["file"].replace(".mp4", ".build.json")
+            self.assertTrue(rec.exists(), f"no citation in git for {i['file']}")
+            self.assertTrue(i.get("release"),
+                            f"{i['file']} names no Release - Pages could not serve it")
             self.assertIn("poster", i)
+
+    def test_no_media_is_tracked_by_git(self):
+        """The rule that ended the history rewrites. Checked on the index."""
+        import subprocess
+        out = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True,
+                             text=True).stdout.split("\n")
+        media = [f for f in out if f.lower().endswith((".mp4", ".mp3", ".wav", ".m4a"))
+                 or f.startswith("web/video/posters/")]
+        self.assertEqual(media, [], f"media committed to git: {media}")
 
     def test_subset_publish_keeps_the_others(self):
         # Everything published is also present as a built artefact, so a subset
