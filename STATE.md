@@ -43,6 +43,38 @@ lines, doubling the block. `_fit_topic` now searches for the largest size whose
 block fits the budget, charging a fixed penalty per extra line so a headline
 that only just wraps does not win over a slightly smaller one-line one.
 
+## Voice: awaiting the owner's approval (asked 2026-10-11)
+
+The English narration was rejected: *"TTS is very bad for English. use male
+sound."* Both halves of that are now measured.
+
+**The engine was Piper** (`rhasspy/piper`, a 2023 VITS model) with the voice
+`en_free` = `en_US-libritts_r-medium`. Our own catalogue claims it is male. It
+is not: it measures **248-250 Hz**, which is the female range, and no amount of
+tuning a VITS voice fixes a wrong speaker.
+
+**Candidates are now from Kokoro-82M** - Apache-2.0, CPU-only, RTF 0.86 here,
+310 MB, 13 male voices. `docs/samples/voice-audition-en.mp3` (91 s) plays the
+real `quran:30:21` translation through the rejected voice and five Kokoro males,
+each announcing itself, with pace and pitch measured by a validated instrument
+(`tools/voice_audition.py --check-pitch`).
+
+| # | voice | licence | wpm | F0 |
+|---|---|---|---|---|
+| 1 | piper en_free (current) | CC-BY-4.0 | 180 | **248 Hz** |
+| 2 | kokoro am_michael | Apache-2.0 | 177 | 117 Hz |
+| 3 | kokoro am_onyx | Apache-2.0 | 206 | 88 Hz |
+| 4 | kokoro am_fenrir | Apache-2.0 | 186 | 141 Hz |
+| 5 | kokoro bm_george | Apache-2.0 | 176 | 132 Hz |
+| 6 | kokoro bm_lewis | Apache-2.0 | 183 | 91 Hz |
+
+**Nothing is wired in until the owner picks one.** When they do: add the engine
+to `islamic/voice.py` as a backend, make it the English default, re-render the
+three clips, re-gate and re-publish. If none of the six is good enough, the next
+tier up is Chatterbox (MIT) - the engine the reference repo approved - which
+cannot run in this sandbox but can run on a free Actions runner, ~6 min per
+video.
+
 ## Narration
 
 * **English by default**, card carries **both** translations (`--no-english` is
