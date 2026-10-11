@@ -60,10 +60,17 @@ if git rev-parse --verify origin/main >/dev/null 2>&1; then
   [[ "$behind" != "0" ]] && warn "$behind commit(s) behind origin/main - fetch first"
 fi
 
-if [[ -f /home/user/naat-ai-ahead.bundle ]]; then
-  ok "recovery bundle present ($(du -h /home/user/naat-ai-ahead.bundle | cut -f1))"
+# A bundle is a local copy of commits that are not on the remote. Once
+# everything is pushed it is a 20 MB duplicate of GitHub, which is the one
+# store that has never lost anything - so its absence is only worth a note when
+# there is genuinely unpushed work.
+if git rev-parse --verify origin/main >/dev/null 2>&1 \
+   && [[ "$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 1)" == "0" ]]; then
+  [[ -f /home/user/naat-ai-ahead.bundle ]] \
+    && warn "a recovery bundle is present but redundant - everything is pushed" \
+    || ok "nothing unpushed; origin/main is the backup (no bundle needed)"
 else
-  warn "no recovery bundle; make one with: git bundle create ../naat-ai-ahead.bundle 68f0d23..main"
+  warn "unpushed commits exist - either push, or: git bundle create ../naat-ai-ahead.bundle 68f0d23..main"
 fi
 
 # --- 3. budget --------------------------------------------------------------
