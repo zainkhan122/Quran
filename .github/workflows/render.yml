@@ -66,6 +66,11 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: python3 tools/plan_render.py --only "$ONLY" --tag "$TAG" --github-output >> "$GITHUB_OUTPUT"
 
+      # The gates are tested before any runner is spent on a render. A broken
+      # gate must stop the run, not silently pass everything through it.
+      - name: Test the gates
+        run: python3 -m unittest discover -s tests -v
+
   render:
     name: render ${{ matrix.clip.slug }}
     needs: plan

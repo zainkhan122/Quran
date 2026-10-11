@@ -1,15 +1,26 @@
-# State — 2026-10-11 (Phase 2 built, dispatch pending)
+# State — 2026-10-11 (Phases 0-3 done; cloud dispatch pending a token)
 
 Resume capsule. One screen. If this file and the repo disagree, the repo wins —
 fix this file.
 
 ## Where things stand
 
-* **Phases 0 and 1 are complete.** The studio renders, and all three clips are
-  published to `web/video/`.
-* **Phase 2 is built and rehearsed but not yet dispatched.** Every new piece was
-  tested locally; the outstanding step is the one that needs GitHub credentials —
-  push, then dispatch the run. See *The one thing blocking Phase 2*.
+* **Phases 0, 1 and 3 are complete.** The studio renders, the three clips are
+  published to `web/video/`, and nothing can reach the site now without passing the
+  gates in `tools/check_video.py`.
+* **Phase 2 is built and rehearsed but not dispatched.** The outstanding step is the
+  one that needs GitHub credentials — push, then dispatch the run. See *The one thing
+  blocking Phase 2*.
+* **Three commits are waiting to be pushed** (Phase 2 and Phase 3 work). They are a
+  clean fast-forward over `origin/main`; no force is needed.
+
+## Run these before you commit
+
+```bash
+bash setup.sh --check                          # ~9 s
+python3 -m unittest discover -s tests          # 27 tests, ~10 s, stdlib only
+python3 tools/publish.py                       # gates every clip, then writes the site
+```
 
 ## The one thing blocking Phase 2
 
@@ -58,6 +69,28 @@ auto-narrated.
 4. **The static-Arabic fitter** is constrained by stage height, not by a line cap
    of 22 (which was also capping the type at 64 px). The isnad now sets at 87 px.
 5. **Pending words** are brass in shadow (`146,124,84`), not cold steel.
+
+## The gates (Phase 3) — what now stands between a render and the site
+
+`tools/check_video.py` runs inside `tools/publish.py`, so a clip must pass before it
+is copied to `web/video/`. A failure holds that clip back, exits non-zero, and leaves
+the previously published version in place.
+
+| Checked | Why it matters |
+|---|---|
+| citation present (reference + readable source) | a clip with no citation must never ship |
+| sacred text present and non-empty | an empty Arabic body is a broken card |
+| **a Qur'an clip names its reciter** | the fingerprint of the TTS fallback; real recitation is the promise |
+| a Qur'an clip records its `timings_source` | word-level sync has to be evidenceable |
+| collection on `TRUSTED_COLLECTIONS` | the trust boundary, re-asserted at publication |
+| hadith carries a grade | the frame always shows one |
+| timed word count == words on the clip | catches a reveal silently dropping a word |
+| h264 / yuv420p / 1080×1920 / aac 44.1 kHz | it has to play everywhere |
+| duration floor and ceiling, agreement with the build record | catches truncation |
+| integrated loudness within −18..−11 LUFS | catches a silent or blown mix |
+
+`tests/test_gates.py` pins all of it. Every promise has a test that fails it on
+purpose, so the gate cannot rot into a rubber stamp.
 
 ## Verified, with the measurement, so it does not have to be re-checked
 
@@ -109,3 +142,8 @@ is missing (the workspace snapshot excludes it), and the PAT lives at `/tmp/.ght
   Pages artifact instead, removing the churn.
 * `tools/cloud.sh` is thin and its argument handling is unverified beyond the
   no-token path.
+* The gate is deliberately quiet about **whether the Arabic is correct**. That is
+  enforced upstream by fetching verbatim and validating; this layer is the last cheap
+  net, not a proof of authenticity. `STATE.md` should not be read as claiming the
+  gate can certify scripture — only that it can catch a clip that has lost its
+  citation, its reciter or a word.

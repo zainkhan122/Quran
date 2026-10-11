@@ -7,11 +7,26 @@ A clip is discovered by its own files, so no shared index has to be merged:
     <slug>.build.json   everything the manifest needs (reference, citation,
                         topic, grade, the verbatim text)
 
+The build record is published alongside the clip, not only kept in the build
+folder. Two reasons, and the second one was found by a test:
+
+  * a published video should carry its citation wherever it goes, and the record
+    IS the citation — reference, source, grade, and the verbatim text;
+  * the build folder is git-ignored, so on a fresh checkout (a cloud runner, a
+    new laptop) the committed clips had no record to check them against and the
+    gate failed them all as unverifiable. Provenance has to be in the repository
+    for the repository's own checks to work.
+
 `videos.json` and `sources.json` are still read when present, as a fallback for
 build folders made before the build record existed. This matters for the cloud
 workflow: five runners render five clips in parallel and upload only their own
 two files, so there is no single cumulative index to write and nothing to
 reconcile.
+
+Every clip must pass tools/check_video.py before it is copied; a clip that fails
+is held back with its reason printed, and the run exits non-zero so CI notices.
+The gate is repeated here even though the render job already runs it, because
+this is the last point before publication and it is cheap.
 
 This tool copies the videos into web/video/, extracts a poster frame for each,
 and writes web/video/manifest.json which the site renders from. Stale videos are
@@ -73,6 +88,27 @@ def _read_json(p: Path, default):
         return default
 
 
+def gate(mp4: Path) -> tuple[bool, str]:
+    """Run the publication gate. Returns (passed, first_reason)."""
+    cmd = [sys.executable, str(ROOT / "tools" / "check_video.py"), str(mp4)]
+    # A Qur'an clip must carry its recitation. A hadith card may be silent, so the
+    # flag is derived from the build record rather than assumed either way.
+    bj = mp4.with_suffix(".build.json")
+    try:
+        build = json.loads(bj.read_text(encoding="utf-8")) if bj.exists() else {}
+    except json.JSONDecodeError:
+        build = {}
+    if build.get("kind") == "quran":
+        cmd.append("--require-audio")
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    if p.returncode == 0:
+        return True, ""
+    for line in (p.stderr or "").splitlines():
+        if line.startswith("FAIL"):
+            return False, line.replace("FAIL", "").strip()
+    return False, (p.stderr or p.stdout or "gate failed").strip()[:160]
+
+
 def _file_stamp(p: Path) -> float:
     try:
         return p.stat().st_mtime
@@ -80,9 +116,14 @@ def _file_stamp(p: Path) -> float:
         return -1.0
 
 
-def collect(build_dirs: list[str]) -> list[dict]:
-    """Every publishable clip, each described by its own build record."""
+def collect(build_dirs: list[str]) -> tuple[list[dict], list[str]]:
+    """Every publishable clip, each described by its own build record.
+
+    Returns (items, held_back_reasons). A clip that fails the gate is not an
+    error to swallow: it is reported and the caller fails the run.
+    """
     items: list[dict] = []
+    held: list[str] = []
     seen: set[str] = set()
 
     for bdir in build_dirs:
@@ -119,6 +160,12 @@ def collect(build_dirs: list[str]) -> list[dict]:
                 print(f"  ! {filename}: no reference in any record, skipped")
                 continue
 
+            ok, why = gate(src)
+            if not ok:
+                print(f"  ! {filename}: HELD BACK — {why}")
+                held.append(f"{filename}: {why}")
+                continue
+
             def pick(field: str, default=""):
                 return build.get(field) or s.get(field) or default
 
@@ -128,6 +175,11 @@ def collect(build_dirs: list[str]) -> list[dict]:
             dest = WEB / filename
             if not dest.exists() or _file_stamp(src) != _file_stamp(dest):
                 shutil.copy2(src, dest)
+            # Publish the citation next to the clip (see the module docstring).
+            if build:
+                rec = WEB / filename.replace(".mp4", ".build.json")
+                rec.write_text(json.dumps(build, ensure_ascii=False, indent=2),
+                               encoding="utf-8")
             poster(src, WEB / "posters" / filename.replace(".mp4", ".jpg"))
 
             items.append({
@@ -150,7 +202,7 @@ def collect(build_dirs: list[str]) -> list[dict]:
                 "built_at": pick("built_at") or s.get("collected_at", ""),
                 **meta,
             })
-    return items
+    return items, held
 
 
 def main() -> int:
@@ -168,8 +220,9 @@ def main() -> int:
     WEB.mkdir(parents=True, exist_ok=True)
     (WEB / "posters").mkdir(exist_ok=True)
 
-    items = collect(a.dirs or BUILD_DIRS)
+    items, held = collect(a.dirs or BUILD_DIRS)
     freshly_built = {i["file"] for i in items}
+    held_names = {h.split(":", 1)[0] for h in held}
 
     # Carry forward what is already live but was not rebuilt in this run.
     if not a.exact:
@@ -185,7 +238,14 @@ def main() -> int:
             kept = dict(old)
             kept.update(probe(live))
             items.append(kept)
-            print(f"  kept {name} (published earlier, not rebuilt in this run)")
+            # Say which of the two it is. "Not rebuilt" and "rebuilt but held
+            # back" look identical on the site — the old file stays either way —
+            # but they mean very different things to whoever reads the log.
+            if name in held_names:
+                print(f"  kept {name} (this run's rebuild was held back, so the "
+                      f"published version stands)")
+            else:
+                print(f"  kept {name} (published earlier, not built in this run)")
 
     # newest first by mtime, so a fresh build lands at the top of the site
     items.sort(key=lambda i: _file_stamp(WEB / i["file"]), reverse=True)
@@ -218,6 +278,15 @@ def main() -> int:
     for i in items:
         print(f"  {i['file']:20s} {i.get('seconds', 0):6.2f}s  "
               f"{i.get('source', '?')}  [{i.get('topic', '')}]")
+
+    if held:
+        print()
+        print(f"[publish] {len(held)} clip(s) held back by the gate:", file=sys.stderr)
+        for h in held:
+            print(f"  {h}", file=sys.stderr)
+        # A gated clip means something is wrong upstream, so this run fails
+        # loudly rather than quietly publishing a smaller library.
+        return 1
     return 0
 
 
